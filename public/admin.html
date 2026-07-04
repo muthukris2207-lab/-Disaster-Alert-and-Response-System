@@ -169,6 +169,11 @@
 
     <!-- SECTION 4: COORDINATE VOLUNTEERS -->
     <section class="admin-section" id="tab-volunteers">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h3 style="font-size:1.15rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-comment-sms" style="color:var(--primary-red);"></i> Prefill SMS Warning Message</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted-dark); margin-bottom:0.8rem;">Type an emergency message below. Clicking the "SMS" buttons in any table will open your SMS messaging app prefilled with this text.</p>
+        <textarea class="form-control sms-global-body" rows="2" style="min-height:55px;" placeholder="Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.">Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.</textarea>
+      </div>
       <div class="card">
         <h2 style="font-size: 1.5rem; margin-bottom: 1rem;"><i class="fas fa-handshake-angle" style="color: var(--success)"></i> Registered Volunteers & Deployments</h2>
         <div class="table-container">
@@ -254,6 +259,11 @@
 
     <!-- SECTION 6: USER REGISTRY -->
     <section class="admin-section" id="tab-users">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h3 style="font-size:1.15rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-comment-sms" style="color:var(--primary-red);"></i> Prefill SMS Warning Message</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted-dark); margin-bottom:0.8rem;">Type an emergency message below. Clicking the "SMS" buttons in any table will open your SMS messaging app prefilled with this text.</p>
+        <textarea class="form-control sms-global-body" rows="2" style="min-height:55px;" placeholder="Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.">Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.</textarea>
+      </div>
       <div class="card">
         <h2 style="font-size: 1.5rem; margin-bottom: 1rem;"><i class="fas fa-users-gear" style="color: var(--primary-red)"></i> User Accounts & Deactivation Control</h2>
         <div class="table-container">
@@ -308,6 +318,17 @@
           setTimeout(() => map.invalidateSize(), 200);
         }
       });
+    });
+
+    // Sync SMS template bodies across tabs in real-time
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('sms-global-body')) {
+        document.querySelectorAll('.sms-global-body').forEach(other => {
+          if (other !== e.target) {
+            other.value = e.target.value;
+          }
+        });
+      }
     });
 
     // Run verification on initial SDK promise completion
@@ -697,9 +718,13 @@
 
         volunteers.forEach(v => {
           const tr = document.createElement('tr');
+          const smsBtn = v.phone 
+            ? `<button class="btn btn-secondary send-sms-btn" data-phone="${v.phone}" style="margin-top:0.3rem; padding:0.25rem 0.5rem; font-size:0.75rem; border-radius:4px; box-shadow:none;"><i class="fas fa-comment-sms"></i> SMS</button>`
+            : `<span style="font-size:0.75rem; color:var(--text-muted-dark);">No Phone</span>`;
+
           tr.innerHTML = `
             <td><strong>${v.name}</strong></td>
-            <td>Email: ${v.email}<br>Tel: <a href="tel:${v.phone}">${v.phone}</a></td>
+            <td>Email: ${v.email}<br>Tel: <a href="tel:${v.phone}">${v.phone}</a><br>${smsBtn}</td>
             <td>${v.skills}</td>
             <td>${v.availableArea}</td>
             <td>
@@ -718,6 +743,15 @@
             const row = btn.parentElement.parentElement;
             const task = row.querySelector('.vol-task-input').value.trim();
             await assignVolunteerTask(btn.dataset.id, task);
+          });
+        });
+
+        // Event listener for SMS alerts
+        tbody.querySelectorAll('.send-sms-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const phone = btn.dataset.phone;
+            const smsText = document.querySelector('.sms-global-body').value.trim() || "Emergency Alert: Please check the Disaster Response dashboard for instructions.";
+            window.open(`sms:${phone}?body=${encodeURIComponent(smsText)}`, '_blank');
           });
         });
 
@@ -946,11 +980,15 @@
           ? `<button class="btn btn-primary toggle-user-btn" data-uid="${u.uid}" data-disabled="false" style="padding:0.3rem 0.6rem; font-size:0.8rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Activate</button>`
           : `<button class="btn btn-danger toggle-user-btn" data-uid="${u.uid}" data-disabled="true" style="padding:0.3rem 0.6rem; font-size:0.8rem; box-shadow:none;"><i class="fas fa-user-slash"></i> Deactivate</button>`;
 
+        const smsBtn = u.phone 
+          ? `<button class="btn btn-secondary send-sms-btn" data-phone="${u.phone}" style="padding:0.25rem 0.5rem; font-size:0.75rem; border-radius:4px; margin-left:0.5rem; box-shadow:none;"><i class="fas fa-comment-sms"></i> SMS</button>`
+          : ``;
+
         tr.innerHTML = `
           <td><small>${u.uid.substring(0,8)}...</small></td>
           <td><strong>${u.fullName || 'Unregistered'}</strong></td>
           <td>${u.email}</td>
-          <td>${u.phone || 'None'}</td>
+          <td>${u.phone || 'None'}${smsBtn}</td>
           <td><span class="badge badge-low">${u.role || 'user'}</span></td>
           <td>${statusBadge}</td>
           <td>${actionBtn}</td>
@@ -963,6 +1001,15 @@
           const uid = btn.dataset.uid;
           const disabledState = btn.dataset.disabled === 'true';
           await toggleUserStatus(uid, disabledState);
+        });
+      });
+
+      // Bind SMS buttons in User Registry
+      tbody.querySelectorAll('.send-sms-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const phone = btn.dataset.phone;
+          const smsText = document.querySelector('.sms-global-body').value.trim() || "Emergency Alert: Please check the Disaster Response dashboard for instructions.";
+          window.open(`sms:${phone}?body=${encodeURIComponent(smsText)}`, '_blank');
         });
       });
     }
