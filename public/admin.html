@@ -915,45 +915,61 @@
         const response = await fetch('/api/users', {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
-        if (!response.ok) throw new Error();
-        const users = await response.json();
-
-        tbody.innerHTML = '';
-        users.forEach(u => {
-          const tr = document.createElement('tr');
-          const isUserDisabled = u.disabled === true;
-          
-          const statusBadge = isUserDisabled 
-            ? `<span class="badge badge-rejected">Suspended</span>` 
-            : `<span class="badge badge-verified">Active</span>`;
-
-          const actionBtn = isUserDisabled
-            ? `<button class="btn btn-primary toggle-user-btn" data-uid="${u.uid}" data-disabled="false" style="padding:0.3rem 0.6rem; font-size:0.8rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Activate</button>`
-            : `<button class="btn btn-danger toggle-user-btn" data-uid="${u.uid}" data-disabled="true" style="padding:0.3rem 0.6rem; font-size:0.8rem; box-shadow:none;"><i class="fas fa-user-slash"></i> Deactivate</button>`;
-
-          tr.innerHTML = `
-            <td><small>${u.uid.substring(0,8)}...</small></td>
-            <td><strong>${u.fullName || 'Unregistered'}</strong></td>
-            <td>${u.email}</td>
-            <td>${u.phone || 'None'}</td>
-            <td><span class="badge badge-low">${u.role || 'user'}</span></td>
-            <td>${statusBadge}</td>
-            <td>${actionBtn}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        tbody.querySelectorAll('.toggle-user-btn').forEach(btn => {
-          btn.addEventListener('click', async () => {
-            const uid = btn.dataset.uid;
-            const disabledState = btn.dataset.disabled === 'true';
-            await toggleUserStatus(uid, disabledState);
-          });
-        });
-
+        let users = [];
+        if (response.ok) {
+          users = await response.json();
+        } else {
+          throw new Error("API failed");
+        }
+        renderUsersTable(users, tbody);
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--primary-red);">Could not load user accounts.</td></tr>`;
+        console.warn("Backend API loadUsersList failed, trying direct client-side read:", err);
+        try {
+          const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const snap = await getDocs(collection(db, 'users'));
+          const users = [];
+          snap.forEach(d => users.push({ uid: d.id, ...d.data() }));
+          renderUsersTable(users, tbody);
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--primary-red);">Could not load user accounts.</td></tr>`;
+        }
       }
+    }
+
+    function renderUsersTable(users, tbody) {
+      tbody.innerHTML = '';
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        const isUserDisabled = u.disabled === true;
+        
+        const statusBadge = isUserDisabled 
+          ? `<span class="badge badge-rejected">Suspended</span>` 
+          : `<span class="badge badge-verified">Active</span>`;
+
+        const actionBtn = isUserDisabled
+          ? `<button class="btn btn-primary toggle-user-btn" data-uid="${u.uid}" data-disabled="false" style="padding:0.3rem 0.6rem; font-size:0.8rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Activate</button>`
+          : `<button class="btn btn-danger toggle-user-btn" data-uid="${u.uid}" data-disabled="true" style="padding:0.3rem 0.6rem; font-size:0.8rem; box-shadow:none;"><i class="fas fa-user-slash"></i> Deactivate</button>`;
+
+        tr.innerHTML = `
+          <td><small>${u.uid.substring(0,8)}...</small></td>
+          <td><strong>${u.fullName || 'Unregistered'}</strong></td>
+          <td>${u.email}</td>
+          <td>${u.phone || 'None'}</td>
+          <td><span class="badge badge-low">${u.role || 'user'}</span></td>
+          <td>${statusBadge}</td>
+          <td>${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.toggle-user-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.uid;
+          const disabledState = btn.dataset.disabled === 'true';
+          await toggleUserStatus(uid, disabledState);
+        });
+      });
     }
 
     async function toggleUserStatus(uid, disabled) {
@@ -972,10 +988,21 @@
         });
         if (!response.ok) throw new Error();
         showNotification("User account status adjusted successfully.", "success");
-        await loadUsersList();
       } catch (err) {
-        showNotification("Adjusting account status failed.", "error");
+        console.warn("Backend API toggleUserStatus failed, trying direct client-side update:", err);
+        try {
+          await updateDoc(doc(db, "users", uid), {
+            disabled: disabled,
+            updatedAt: new Date()
+          });
+          showNotification("User account status adjusted directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Adjusting account status failed: " + fallbackErr.message, "error");
+          return;
+        }
       }
+      await loadUsersList();
     }
 
     function getSeverityColor(sev) {
