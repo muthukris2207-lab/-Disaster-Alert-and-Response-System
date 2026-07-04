@@ -129,3 +129,6 @@ The database rules are configured to restrict access securely:
 - Incident reports, emergency SOS requests, and volunteer applications can be created by any authenticated user.
 - Admins can read, update, verify, and reject all incident queue documents.
 - Only users with the `'admin'` role defined in `/users/{userId}` are allowed to write alerts in `/alerts` or shelters in `/shelters`.
+
+<!-- Redeploy Trigger: 2026-07-04T19:35:00Z -->
+
