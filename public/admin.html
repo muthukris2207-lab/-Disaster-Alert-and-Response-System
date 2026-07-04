@@ -435,70 +435,100 @@
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
         
-        if (!response.ok) throw new Error("Could not fetch reports queue");
-        const data = await response.json();
+        let allItems = [];
+        if (response.ok) {
+          const data = await response.json();
+          allItems = [...data.reports, ...data.emergencyRequests];
+        } else {
+          throw new Error("API failed");
+        }
+        renderQueueItems(allItems, container);
+      } catch(err) {
+        console.warn("Backend queue fetch failed, trying direct client-side read:", err);
+        try {
+          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const repSnap = await getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc')));
+          const reports = [];
+          repSnap.forEach(d => reports.push({ id: d.id, type: 'report', ...d.data(), createdAt: d.data().createdAt ? d.data().createdAt.toDate() : null }));
 
-        container.innerHTML = '';
-        const allItems = [...data.reports, ...data.emergencyRequests];
-        
-        if (allItems.length === 0) {
-          container.innerHTML = `<p style="text-align:center; color:var(--text-muted-dark);">Queue empty. No reports filed.</p>`;
-          return;
+          const emSnap = await getDocs(query(collection(db, 'emergency_requests'), orderBy('createdAt', 'desc')));
+          const emergencyRequests = [];
+          emSnap.forEach(d => emergencyRequests.push({ id: d.id, type: 'emergency_request', ...d.data(), createdAt: d.data().createdAt ? d.data().createdAt.toDate() : null }));
+
+          const combined = [...reports, ...emergencyRequests].sort((a,b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt - a.createdAt;
+          });
+
+          renderQueueItems(combined, container);
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          container.innerHTML = `<p style="color:var(--primary-red); text-align:center;">Failed to load incident reports queue.</p>`;
+        }
+      }
+    }
+
+    function renderQueueItems(allItems, container) {
+      container.innerHTML = '';
+      if (allItems.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:var(--text-muted-dark);">Queue empty. No reports filed.</p>`;
+        return;
+      }
+
+      allItems.forEach(item => {
+        const card = document.createElement('div');
+        card.style.padding = '1.5rem';
+        card.style.borderRadius = 'var(--border-radius-sm)';
+        card.style.background = 'rgba(0,0,0,0.02)';
+        card.style.border = '1px solid rgba(0,0,0,0.06)';
+        card.style.position = 'relative';
+
+        if (document.body.classList.contains('dark-mode')) {
+          card.style.background = 'rgba(255,255,255,0.02)';
+          card.style.borderColor = 'rgba(255,255,255,0.06)';
         }
 
-        allItems.forEach(item => {
-          const card = document.createElement('div');
-          card.style.padding = '1.5rem';
-          card.style.borderRadius = 'var(--border-radius-sm)';
-          card.style.background = 'rgba(0,0,0,0.02)';
-          card.style.border = '1px solid rgba(0,0,0,0.06)';
-          card.style.position = 'relative';
+        const isSos = item.type === 'emergency_request';
+        const title = isSos 
+          ? `<span style="color:var(--severity-critical); font-weight:700;"><i class="fas fa-handshake-angle"></i> SOS Request from ${item.name}</span>`
+          : `<span><i class="fas fa-triangle-exclamation" style="color:var(--primary-red);"></i> ${item.disasterType} Report</span>`;
 
-          if (document.body.classList.contains('dark-mode')) {
-            card.style.background = 'rgba(255,255,255,0.02)';
-            card.style.borderColor = 'rgba(255,255,255,0.06)';
-          }
+        const details = isSos
+          ? `<strong>Help Required:</strong> ${item.typeOfHelp}<br><strong>Contact Phone:</strong> <a href="tel:${item.phone}">${item.phone}</a>`
+          : `<strong>Description:</strong> ${item.description}`;
 
-          const isSos = item.type === 'emergency_request';
-          const title = isSos 
-            ? `<span style="color:var(--severity-critical); font-weight:700;"><i class="fas fa-handshake-angle"></i> SOS Request from ${item.name}</span>`
-            : `<span><i class="fas fa-triangle-exclamation" style="color:var(--primary-red);"></i> ${item.disasterType} Report</span>`;
+        const imageLink = item.photoUrl 
+          ? `<div style="margin-top:0.8rem;"><a href="${item.photoUrl}" target="_blank" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.8rem;"><i class="fas fa-image"></i> View Attachment</a></div>`
+          : '';
 
-          const details = isSos
-            ? `<strong>Help Required:</strong> ${item.typeOfHelp}<br><strong>Contact Phone:</strong> <a href="tel:${item.phone}">${item.phone}</a>`
-            : `<strong>Description:</strong> ${item.description}`;
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+            ${title}
+            <span class="badge badge-${item.status.toLowerCase()}">${item.status}</span>
+          </div>
+          <p style="font-size:0.9rem; margin-bottom:1rem;">${details}</p>
+          <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted-dark); font-weight:600;">
+            <span><i class="fas fa-location-arrow"></i> Location: ${item.location || (item.latitude ? `${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)}` : 'Unknown')}</span>
+            <span><i class="fas fa-calendar-check"></i> Date: ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recent'}</span>
+          </div>
+          ${imageLink}
+          
+          <div style="margin-top: 1.5rem; display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="btn btn-primary approve-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Verify</button>
+            <button class="btn btn-danger reject-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; box-shadow:none;"><i class="fas fa-xmark"></i> Reject</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
 
-          const imageLink = item.photoUrl 
-            ? `<div style="margin-top:0.8rem;"><a href="${item.photoUrl}" target="_blank" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.8rem;"><i class="fas fa-image"></i> View Attachment</a></div>`
-            : '';
-
-          card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-              ${title}
-              <span class="badge badge-${item.status.toLowerCase()}">${item.status}</span>
-            </div>
-            <p style="font-size:0.9rem; margin-bottom:1rem;">${details}</p>
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted-dark); font-weight:600;">
-              <span><i class="fas fa-location-arrow"></i> Location: ${item.location || (item.latitude ? `${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)}` : 'Unknown')}</span>
-              <span><i class="fas fa-calendar-check"></i> Date: ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recent'}</span>
-            </div>
-            ${imageLink}
-            
-            <div style="margin-top: 1.5rem; display:flex; gap:0.5rem; justify-content:flex-end;">
-              <button class="btn btn-primary approve-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Verify</button>
-              <button class="btn btn-danger reject-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; box-shadow:none;"><i class="fas fa-xmark"></i> Reject</button>
-            </div>
-          `;
-          container.appendChild(card);
-        });
-
-        // Event listeners for approval/rejection
-        container.querySelectorAll('.approve-btn').forEach(btn => {
-          btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Verified'));
-        });
-        container.querySelectorAll('.reject-btn').forEach(btn => {
-          btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Rejected'));
-        });
+      // Event listeners for approval/rejection
+      container.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Verified'));
+      });
+      container.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Rejected'));
+      });
 
       } catch(err) {
         console.error(err);
@@ -521,15 +551,27 @@
           body: JSON.stringify({ id, type, status })
         });
 
-        if (!response.ok) throw new Error("Status update failed.");
-        showNotification(`Report successfully updated as ${status}.`, "success");
-        
-        await loadIncidentQueue();
-        await refreshDashboardStats();
-        plotMapMarkers();
+        if (!response.ok) throw new Error("Server API failed.");
+        showNotification(`Report status updated to ${status}.`, "success");
       } catch (err) {
-        showNotification("Failed updating report status.", "error");
+        console.warn("Backend API status update failed, trying direct client-side update:", err);
+        try {
+          const collectionName = type === 'emergency_request' ? 'emergency_requests' : 'reports';
+          await updateDoc(doc(db, collectionName, id), {
+            status,
+            updatedAt: new Date()
+          });
+          showNotification(`Report status updated to ${status} directly.`, "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed updating report status: " + fallbackErr.message, "error");
+          return;
+        }
       }
+      
+      await loadIncidentQueue();
+      await refreshDashboardStats();
+      plotMapMarkers();
     }
 
     // 4. PUBLISH ALERTS & BROADCAST HISTORY
@@ -554,28 +596,52 @@
           body: JSON.stringify({ type, severity, location, message })
         });
 
-        if (!response.ok) throw new Error("Publishing alert failed.");
-        
+        if (!response.ok) throw new Error("Server API failed.");
         showNotification("Alert broadcast complete via Push Notifications.", "success");
-        
-        // Reset form
-        document.getElementById('broadcast-type').value = '';
-        document.getElementById('broadcast-location').value = '';
-        document.getElementById('broadcast-message').value = '';
-        
-        await loadAlertHistory();
-        await refreshDashboardStats();
       } catch (err) {
-        showNotification("Failed broadcasting alert.", "error");
+        console.warn("Backend API alert publish failed, trying direct client-side write:", err);
+        try {
+          await addDoc(collection(db, "alerts"), {
+            type,
+            severity,
+            location,
+            message,
+            timestamp: new Date(),
+            status: 'Active',
+            createdBy: user.uid
+          });
+          showNotification("Alert published directly (FCM Push skipped).", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed to publish alert: " + fallbackErr.message, "error");
+          return;
+        }
       }
+
+      // Reset form
+      document.getElementById('broadcast-type').value = '';
+      document.getElementById('broadcast-location').value = '';
+      document.getElementById('broadcast-message').value = '';
+      
+      await loadAlertHistory();
+      await refreshDashboardStats();
     });
 
     async function loadAlertHistory() {
       const container = document.getElementById('history-alerts-container');
       try {
         const response = await fetch('/api/alerts');
-        if (!response.ok) throw new Error();
-        const alerts = await response.json();
+        let alerts = [];
+        if (response.ok) {
+          alerts = await response.json();
+        } else {
+          // Fallback to reading alerts directly via client Firestore SDK
+          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const snap = await getDocs(query(collection(db, 'alerts'), orderBy('timestamp', 'desc')));
+          snap.forEach(docSnap => {
+            alerts.push({ id: docSnap.id, ...docSnap.data(), timestamp: docSnap.data().timestamp ? docSnap.data().timestamp.toDate() : null });
+          });
+        }
 
         container.innerHTML = '';
         if (alerts.length === 0) {
@@ -619,8 +685,17 @@
         const response = await fetch('/api/volunteers', {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
-        if (!response.ok) throw new Error();
-        const volunteers = await response.json();
+        let volunteers = [];
+        if (response.ok) {
+          volunteers = await response.json();
+        } else {
+          // Fallback to client-side read
+          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const snap = await getDocs(query(collection(db, 'volunteers'), orderBy('createdAt', 'desc')));
+          snap.forEach(docSnap => {
+            volunteers.push({ id: docSnap.id, ...docSnap.data() });
+          });
+        }
 
         tbody.innerHTML = '';
         if (volunteers.length === 0) {
@@ -675,10 +750,21 @@
         });
         if (!response.ok) throw new Error();
         showNotification("Task assigned successfully to volunteer.", "success");
-        await loadVolunteersList();
       } catch (err) {
-        showNotification("Failed to assign volunteer task.", "error");
+        console.warn("Backend API task assign failed, trying direct update:", err);
+        try {
+          await updateDoc(doc(db, "volunteers", id), {
+            assignedTask: assignedTask || '',
+            updatedAt: new Date()
+          });
+          showNotification("Task assigned to volunteer directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed to assign volunteer task: " + fallbackErr.message, "error");
+          return;
+        }
       }
+      await loadVolunteersList();
     }
 
     // 6. MANAGE SHELTERS (ADD / EDIT / LIST)
@@ -693,10 +779,10 @@
       const id = document.getElementById('shelter-id').value;
       const name = document.getElementById('she-name').value.trim();
       const address = document.getElementById('she-address').value.trim();
-      const latitude = document.getElementById('she-lat').value;
-      const longitude = document.getElementById('she-lng').value;
-      const capacity = document.getElementById('she-capacity').value;
-      const occupancy = document.getElementById('she-occupancy').value;
+      const latitude = parseFloat(document.getElementById('she-lat').value) || null;
+      const longitude = parseFloat(document.getElementById('she-lng').value) || null;
+      const capacity = parseInt(document.getElementById('she-capacity').value);
+      const occupancy = parseInt(document.getElementById('she-occupancy').value) || 0;
       const foodAvailable = document.getElementById('she-food').checked;
       const medicalAvailable = document.getElementById('she-medical').checked;
 
@@ -715,14 +801,35 @@
           })
         });
 
-        if (!response.ok) throw new Error("Saving shelter failed.");
-        showNotification("Shelter settings saved.", "success");
-        resetShelterForm();
-        await loadSheltersList();
-        await refreshDashboardStats();
+        if (!response.ok) throw new Error();
+        showNotification("Shelter settings saved successfully.", "success");
       } catch(err) {
-        showNotification("Failed saving shelter parameters.", "error");
+        console.warn("Backend API shelter save failed, trying direct write:", err);
+        try {
+          if (id) {
+            // Update
+            await updateDoc(doc(db, "shelters", id), {
+              name, address, latitude, longitude, capacity, occupancy, foodAvailable, medicalAvailable,
+              updatedAt: new Date()
+            });
+          } else {
+            // Create
+            await addDoc(collection(db, "shelters"), {
+              name, address, latitude, longitude, capacity, occupancy, foodAvailable, medicalAvailable,
+              createdAt: new Date()
+            });
+          }
+          showNotification("Shelter settings saved directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed saving shelter parameters: " + fallbackErr.message, "error");
+          return;
+        }
       }
+
+      resetShelterForm();
+      await loadSheltersList();
+      await refreshDashboardStats();
     });
 
     clearShelterBtn.addEventListener('click', resetShelterForm);
@@ -738,8 +845,17 @@
       const container = document.getElementById('admin-shelters-list');
       try {
         const response = await fetch('/api/shelters');
-        if (!response.ok) throw new Error();
-        const shelters = await response.json();
+        let shelters = [];
+        if (response.ok) {
+          shelters = await response.json();
+        } else {
+          // Fallback to client-side read
+          const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          const snap = await getDocs(collection(db, 'shelters'));
+          snap.forEach(docSnap => {
+            shelters.push({ id: docSnap.id, ...docSnap.data() });
+          });
+        }
 
         container.innerHTML = '';
         if (shelters.length === 0) {
