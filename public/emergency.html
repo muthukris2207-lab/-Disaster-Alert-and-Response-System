@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emergency Support Hub | Disaster Alert System</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Styling for directory and shelter layouts */
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .contact-card {
+      text-align: center;
+      padding: 1.5rem;
+      border-radius: var(--border-radius-sm);
+      background-color: var(--bg-card-light);
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: var(--box-shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    body.dark-mode .contact-card {
+      background-color: var(--bg-card-dark);
+      border-color: rgba(255,255,255,0.06);
+    }
+    .contact-phone {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--primary-red);
+      margin: 0.3rem 0;
+    }
+    .shelter-details {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+    .resource-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .resource-available {
+      background-color: rgba(46, 125, 50, 0.12);
+      color: var(--success);
+    }
+    .resource-unavailable {
+      background-color: rgba(211, 47, 47, 0.12);
+      color: var(--primary-red);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="/" class="logo">
+      <i class="fas fa-shield-halved"></i>
+      <span>DISASTER RESPONSE</span>
+    </a>
+    <div class="nav-actions">
+      <nav id="navbar-links">
+        <a href="/">Home</a>
+        <a href="/emergency" class="active">Emergency Hub</a>
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+      </nav>
+      <button class="theme-switch" id="theme-toggle">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- 1. EMERGENCY CONTACT DIRECTORY -->
+    <section>
+      <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
+        <i class="fas fa-phone-volume" style="color: var(--primary-red)"></i> Emergency Helplines
+      </h2>
+      <p style="color: var(--text-muted-dark); margin-bottom: 1.5rem;">Immediate one-click connections to public emergency response channels.</p>
+      
+      <div class="contact-grid">
+        <!-- Police -->
+        <div class="contact-card">
+          <i class="fas fa-building-shield" style="font-size: 2rem; color: var(--info);"></i>
+          <h4 style="margin: 0.2rem 0;">Police Dept</h4>
+          <div class="contact-phone">100</div>
+          <a href="tel:100" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem; width:100%;">
+            <i class="fas fa-phone"></i> Call Now
+          </a>
+        </div>
+        <!-- Fire Service -->
+        <div class="contact-card">
+          <i class="fas fa-fire-extinguisher" style="font-size: 2rem; color: var(--severity-medium);"></i>
+          <h4 style="margin: 0.2rem 0;">Fire Brigade</h4>
+          <div class="contact-phone">101</div>
+          <a href="tel:101" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem; width:100%;">
+            <i class="fas fa-phone"></i> Call Now
+          </a>
+        </div>
+        <!-- Ambulance -->
+        <div class="contact-card">
+          <i class="fas fa-truck-medical" style="font-size: 2rem; color: var(--success);"></i>
+          <h4 style="margin: 0.2rem 0;">Ambulance</h4>
+          <div class="contact-phone">108</div>
+          <a href="tel:108" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem; width:100%;">
+            <i class="fas fa-phone"></i> Call Now
+          </a>
+        </div>
+        <!-- Disaster Management -->
+        <div class="contact-card">
+          <i class="fas fa-satellite-dish" style="font-size: 2rem; color: var(--primary-red);"></i>
+          <h4 style="margin: 0.2rem 0;">Disaster Helpline</h4>
+          <div class="contact-phone">1078</div>
+          <a href="tel:1078" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem; width:100%;">
+            <i class="fas fa-phone"></i> Call Now
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. NEARBY SHELTERS PAGE -->
+    <section style="margin-bottom: 4rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 2rem; font-weight: 800; margin:0; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fas fa-house-circle-check" style="color: var(--primary-red)"></i> Nearby Safe Shelters
+        </h2>
+        <button id="find-shelters-btn" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size:0.9rem;">
+          <i class="fas fa-location-arrow"></i> Refresh GPS Shelters
+        </button>
+      </div>
+
+      <div id="shelters-loader" style="text-align: center; padding: 2rem 0; color: var(--text-muted-dark);">
+        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-red); margin-bottom: 0.5rem;"></i>
+        <p>Locating closest relief facilities...</p>
+      </div>
+      
+      <div class="grid-3" id="shelters-grid" style="display: none; margin-top: 1.5rem;">
+        <!-- Injected dynamically -->
+      </div>
+    </section>
+
+    <!-- 3. EMERGENCY REQUEST & VOLUNTEER TABS -->
+    <section class="grid-2" style="margin-top: 4rem;">
+      
+      <!-- Tab 1: Emergency SOS request -->
+      <div class="card">
+        <h3 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fas fa-kit-medical" style="color: var(--primary-red)"></i> Emergency Help SOS
+        </h3>
+        <p style="color: var(--text-muted-dark); font-size: 0.9rem; margin-bottom: 1.5rem;">Request immediate rescue, evacuation, food rations, or medical supplies.</p>
+        
+        <form id="sos-form">
+          <div class="form-group">
+            <label for="sos-name">Contact Person Name</label>
+            <input type="text" id="sos-name" class="form-control" placeholder="FullName" required>
+          </div>
+          <div class="form-group">
+            <label for="sos-phone">Active Phone Number</label>
+            <input type="tel" id="sos-phone" class="form-control" placeholder="SOS Phone Line" required>
+          </div>
+          <div class="form-group">
+            <label for="sos-help">Type of Assistance Required</label>
+            <textarea id="sos-help" class="form-control" style="min-height: 80px;" placeholder="Describe what you need (e.g. food supplies, medical emergency, flood rescue)" required></textarea>
+          </div>
+          <div class="form-group">
+            <label for="sos-location">Location (Captured from GPS or type details)</label>
+            <input type="text" id="sos-location" class="form-control" placeholder="Specific house, floor, or coordinates" required>
+          </div>
+          <button type="submit" class="btn btn-danger" style="width: 100%; margin-top: 1rem;">
+            <i class="fas fa-hand-holding-medical"></i> Broadcast SOS Signal
+          </button>
+        </form>
+      </div>
+
+      <!-- Tab 2: Volunteer registration -->
+      <div class="card">
+        <h3 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fas fa-users-viewfinder" style="color: var(--success)"></i> Join Disaster Responders
+        </h3>
+        <p style="color: var(--text-muted-dark); font-size: 0.9rem; margin-bottom: 1.5rem;">Offer your skills, tools, or physical support to localized response activities.</p>
+        
+        <form id="volunteer-form">
+          <div class="form-group">
+            <label for="vol-name">Full Name</label>
+            <input type="text" id="vol-name" class="form-control" placeholder="FullName" required>
+          </div>
+          <div class="form-group">
+            <label for="vol-email">Email Address</label>
+            <input type="email" id="vol-email" class="form-control" placeholder="name@domain.com" required>
+          </div>
+          <div class="form-group">
+            <label for="vol-phone">Contact Number</label>
+            <input type="tel" id="vol-phone" class="form-control" placeholder="Phone" required>
+          </div>
+          <div class="form-group">
+            <label for="vol-skills">Skills & Credentials</label>
+            <input type="text" id="vol-skills" class="form-control" placeholder="e.g. First Aid, Swimming, HAM Radio, Driving" required>
+          </div>
+          <div class="form-group">
+            <label for="vol-area">Available Local Areas</label>
+            <input type="text" id="vol-area" class="form-control" placeholder="e.g. Area Code / Neighborhood" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; background-color:var(--success); box-shadow:0 4px 14px rgba(46,125,50,0.4)">
+            <i class="fas fa-handshake-angle"></i> Submit Volunteer Application
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Disaster Alert and Response System. Developed for premium emergency deployment.</p>
+  </footer>
+
+  <script type="module">
+    import { firebaseInitPromise, auth, db, showNotification } from '/js/app.js';
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    let userLat = null;
+    let userLng = null;
+
+    // Load initial data after firebase check
+    firebaseInitPromise.then(async () => {
+      const user = auth.currentUser;
+      if (user) {
+        // Auto-fill forms with user data if available
+        try {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          if (userSnap.exists()) {
+            const profile = userSnap.data();
+            
+            // Auto fill SOS form
+            document.getElementById('sos-name').value = profile.fullName || '';
+            document.getElementById('sos-phone').value = profile.phone || '';
+            document.getElementById('sos-location').value = profile.location || '';
+            
+            // Auto fill Volunteer form
+            document.getElementById('vol-name').value = profile.fullName || '';
+            document.getElementById('vol-email').value = profile.email || '';
+            document.getElementById('vol-phone').value = profile.phone || '';
+            
+            // Keep user coordinates
+            userLat = profile.latitude || null;
+            userLng = profile.longitude || null;
+          }
+        } catch(e) {
+          console.warn("Failed to autofill profile data:", e);
+        }
+      }
+      
+      // Load nearby shelters
+      locateAndFetchShelters();
+    });
+
+    // Handle locating shelters
+    document.getElementById('find-shelters-btn').addEventListener('click', () => {
+      locateAndFetchShelters(true);
+    });
+
+    function locateAndFetchShelters(forceGPS = false) {
+      const loader = document.getElementById('shelters-loader');
+      const grid = document.getElementById('shelters-grid');
+      
+      loader.style.display = 'block';
+      grid.style.display = 'none';
+
+      // If coordinates already exist and we are not forcing a refresh
+      if (userLat && userLng && !forceGPS) {
+        fetchShelters(userLat, userLng);
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        showNotification("Geolocation unsupported. Pulling general shelters.", "error");
+        fetchShelters(null, null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          fetchShelters(userLat, userLng);
+        },
+        (err) => {
+          console.warn("GPS error during shelter fetch:", err);
+          showNotification("Proximity routing failed: using database order.", "error");
+          fetchShelters(null, null);
+        },
+        { timeout: 8000 }
+      );
+    }
+
+    async function fetchShelters(lat, lng) {
+      const loader = document.getElementById('shelters-loader');
+      const grid = document.getElementById('shelters-grid');
+      
+      let url = '/api/shelters';
+      if (lat && lng) {
+        url += `?lat=${lat}&lng=${lng}`;
+      }
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Shelter retrieval failed");
+        
+        const shelters = await response.json();
+        
+        grid.innerHTML = '';
+        
+        if (shelters.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column: span 3; text-align: center; color: var(--text-muted-dark); padding: 3rem;">
+              <i class="fas fa-house-chimney-crack" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+              <p>No safety shelters registered in the database yet.</p>
+            </div>
+          `;
+        } else {
+          shelters.forEach(shelter => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            const distanceText = shelter.distance !== undefined && shelter.distance !== null 
+              ? `<small style="font-weight:700; color:var(--primary-red);"><i class="fas fa-location-arrow"></i> ${shelter.distance.toFixed(1)} KM away</small>` 
+              : '';
+            
+            const occPercentage = Math.round((shelter.occupancy / shelter.capacity) * 100) || 0;
+            const capColor = occPercentage > 90 ? 'var(--severity-critical)' : occPercentage > 60 ? 'var(--severity-medium)' : 'var(--success)';
+
+            card.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 0.5rem;">
+                <h3 style="font-size:1.2rem; margin:0;"><i class="fas fa-house-circle-check" style="color:var(--success)"></i> ${shelter.name}</h3>
+                ${distanceText}
+              </div>
+              <p style="color:var(--text-muted-dark); font-size:0.85rem; margin-bottom: 1rem;"><i class="fas fa-map-pin"></i> ${shelter.address}</p>
+              
+              <!-- Capacity indicator bar -->
+              <div style="margin-bottom: 1rem;">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:0.2rem;">
+                  <span>Capacity Details:</span>
+                  <span style="color:${capColor}">${shelter.occupancy} / ${shelter.capacity} filled (${occPercentage}%)</span>
+                </div>
+                <div style="width:100%; height:8px; border-radius:10px; background:rgba(0,0,0,0.06); overflow:hidden;">
+                  <div style="width:${Math.min(occPercentage, 100)}%; height:100%; background:${capColor};"></div>
+                </div>
+              </div>
+
+              <div class="shelter-details">
+                <span class="resource-indicator ${shelter.foodAvailable ? 'resource-available' : 'resource-unavailable'}">
+                  <i class="fas ${shelter.foodAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Food
+                </span>
+                <span class="resource-indicator ${shelter.medicalAvailable ? 'resource-available' : 'resource-unavailable'}">
+                  <i class="fas ${shelter.medicalAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Medical Aid
+                </span>
+              </div>
+            `;
+            grid.appendChild(card);
+          });
+        }
+
+        loader.style.display = 'none';
+        grid.style.display = 'grid';
+
+      } catch (err) {
+        console.error("Fetch shelters failed:", err);
+        loader.style.display = 'none';
+        grid.innerHTML = `
+          <div style="grid-column: span 3; text-align: center; color: var(--primary-red); padding: 2rem;">
+            <p>Could not fetch shelters. Verify backend connection is up.</p>
+          </div>
+        `;
+        grid.style.display = 'block';
+      }
+    }
+
+    // Submit SOS Help Form
+    document.getElementById('sos-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const user = auth.currentUser;
+      if (!user) {
+        showNotification("Please sign in or register to submit requests.", "error");
+        return;
+      }
+
+      const name = document.getElementById('sos-name').value.trim();
+      const phone = document.getElementById('sos-phone').value.trim();
+      const typeOfHelp = document.getElementById('sos-help').value.trim();
+      const location = document.getElementById('sos-location').value.trim();
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            isEmergencyRequest: true,
+            name,
+            phone,
+            typeOfHelp,
+            location,
+            latitude: userLat,
+            longitude: userLng
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || "SOS submit failed");
+        }
+
+        showNotification("SOS Help Signal Broadcasted. Relaying to teams.", "success");
+        document.getElementById('sos-help').value = '';
+      } catch (err) {
+        console.error(err);
+        showNotification("Failed to send SOS: " + err.message, "error");
+      }
+    });
+
+    // Submit Volunteer Registration
+    document.getElementById('volunteer-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const user = auth.currentUser;
+      if (!user) {
+        showNotification("Please sign in or register to become a volunteer.", "error");
+        return;
+      }
+
+      const name = document.getElementById('vol-name').value.trim();
+      const email = document.getElementById('vol-email').value.trim();
+      const phone = document.getElementById('vol-phone').value.trim();
+      const skills = document.getElementById('vol-skills').value.trim();
+      const availableArea = document.getElementById('vol-area').value.trim();
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/volunteers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            skills,
+            availableArea
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || "Volunteer register failed");
+        }
+
+        showNotification("Volunteer registration submitted. Thank you for your support!", "success");
+        document.getElementById('vol-skills').value = '';
+        document.getElementById('vol-area').value = '';
+      } catch(err) {
+        console.error(err);
+        showNotification("Volunteer registration failed: " + err.message, "error");
+      }
+    });
+  </script>
+</body>
+</html>

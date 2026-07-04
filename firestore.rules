@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return isSignedIn() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // User profiles rules
+    match /users/{userId} {
+      allow read, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn(); // User can create profile upon registration
+      allow delete: if isAdmin();
+    }
+
+    // Disaster Alerts rules
+    match /alerts/{alertId} {
+      allow read: if true; // Publicly readable for safety
+      allow write: if isAdmin(); // Only admins can publish or modify alerts
+    }
+
+    // Shelters rules
+    match /shelters/{shelterId} {
+      allow read: if true; // Publicly readable for safety
+      allow write: if isAdmin(); // Only admins can add or edit shelters
+    }
+
+    // Incident Reports rules
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Emergency Requests rules
+    match /emergency_requests/{requestId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Volunteers rules
+    match /volunteers/{volunteerId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+  }
+}

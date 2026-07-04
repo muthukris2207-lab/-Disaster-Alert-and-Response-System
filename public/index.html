@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disaster Alert & Response System | Home</title>
+  <meta name="description" content="Real-time disaster reporting, emergency shelters tracker, live warning broadcasts, and resource allocation.">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Live Emergency Alert Ticker -->
+  <div class="alert-ticker" id="ticker-banner" style="display: none;">
+    <div class="ticker-title"><i class="fas fa-exclamation-triangle"></i> EMERGENCY</div>
+    <div class="ticker-content" id="ticker-text">Live Monitoring: Monitoring global feeds. Stay alert.</div>
+  </div>
+
+  <!-- Header Navigation -->
+  <header>
+    <a href="/" class="logo">
+      <i class="fas fa-shield-halved"></i>
+      <span>DISASTER RESPONSE</span>
+    </a>
+    <div class="nav-actions">
+      <nav id="navbar-links">
+        <!-- Injected dynamically by app.js -->
+        <a href="/" class="active">Home</a>
+        <a href="/emergency">Emergency Hub</a>
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+      </nav>
+      <button class="theme-switch" id="theme-toggle" aria-label="Toggle Theme">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Banner -->
+  <section class="hero">
+    <div class="badge badge-critical" style="margin-bottom: 1rem;">
+      <i class="fas fa-satellite-dish"></i> LIVE DISASTER MONITORING ACTIVE
+    </div>
+    <h1>Disaster Alert &<br><span style="color: var(--primary-red);">Response Network</span></h1>
+    <p>Empowering local communities with instant alert broadcasts, location-aware shelter routing, incident crowdsourcing, and coordinated volunteer deployments.</p>
+    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+      <a href="/report" class="btn btn-primary"><i class="fas fa-bullhorn"></i> Report Incident</a>
+      <a href="/emergency" class="btn btn-secondary"><i class="fas fa-truck-medical"></i> Find Shelter & Help</a>
+    </div>
+  </section>
+
+  <!-- Feature Grid -->
+  <main class="container">
+    <div class="grid-3">
+      <!-- Alerts -->
+      <div class="card">
+        <div style="color: var(--primary-red); font-size: 2.5rem; margin-bottom: 1rem;">
+          <i class="fas fa-circle-exclamation"></i>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.3rem;">Instant Warning System</h3>
+        <p style="color: var(--text-muted-dark);" id="desc-alerts">Receives live, location-filtered disaster feeds from emergency management teams via web push notifications.</p>
+      </div>
+
+      <!-- Shelters -->
+      <div class="card">
+        <div style="color: var(--info); font-size: 2.5rem; margin-bottom: 1rem;">
+          <i class="fas fa-house-chimney-medical"></i>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.3rem;">Interactive Shelter Locator</h3>
+        <p style="color: var(--text-muted-dark);" id="desc-shelters">Geolocate nearby emergency shelters. View real-time details on capacity, occupancy, and key resource availabilities.</p>
+      </div>
+
+      <!-- Volunteers -->
+      <div class="card">
+        <div style="color: var(--success); font-size: 2.5rem; margin-bottom: 1rem;">
+          <i class="fas fa-users-viewfinder"></i>
+        </div>
+        <h3 style="margin-bottom: 0.5rem; font-size: 1.3rem;">Volunteer Mobilization</h3>
+        <p style="color: var(--text-muted-dark);" id="desc-volunteers">Register as a responder. Offer skills, view deployment directives, and support emergency distribution operations.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Active Incidents Highlights -->
+  <section class="container" style="padding-top: 0;">
+    <h2 style="font-size: 2rem; font-weight: 800; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+      <i class="fas fa-clock"></i> Active Incident Feeds
+    </h2>
+    <div class="grid-2" id="alerts-grid">
+      <!-- Loaded dynamically -->
+      <div class="card" style="text-align: center; color: var(--text-muted-dark); grid-column: span 2;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem; color: var(--primary-red);"></i>
+        <p>Loading active alerts...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 Disaster Alert and Response System. Developed for premium emergency deployment.</p>
+  </footer>
+
+  <!-- Script Integration -->
+  <script type="module">
+    import { firebaseInitPromise, db } from '/js/app.js';
+    import { collection, query, where, getDocs, limit, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Adjust theme toggle icon based on mode
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const isDark = document.body.classList.contains('dark-mode');
+        const icon = document.querySelector('#theme-toggle i');
+        if (icon) {
+          icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        }
+      }, 200);
+    });
+
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const icon = document.querySelector('#theme-toggle i');
+      if (icon) {
+        setTimeout(() => {
+          const isDark = document.body.classList.contains('dark-mode');
+          icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+        }, 50);
+      }
+    });
+
+    // Wait for firebase configuration, then fetch active alerts
+    firebaseInitPromise.then(async () => {
+      try {
+        const alertsRef = collection(db, "alerts");
+        // Query for active alerts sorted by timestamp
+        const q = query(alertsRef, where("status", "==", "Active"), orderBy("timestamp", "desc"), limit(4));
+        const querySnapshot = await getDocs(q);
+        
+        const grid = document.getElementById('alerts-grid');
+        grid.innerHTML = '';
+        
+        let tickerMessages = [];
+        
+        if (querySnapshot.empty) {
+          grid.innerHTML = `
+            <div class="card" style="grid-column: span 2; text-align: center; padding: 3rem;">
+              <i class="fas fa-circle-check" style="font-size: 3rem; color: var(--success); margin-bottom: 1rem;"></i>
+              <h3>All Systems Clear</h3>
+              <p style="color: var(--text-muted-dark); margin-top: 0.5rem;">No active disasters or alerts reported in your area. Keep monitoring.</p>
+            </div>
+          `;
+          return;
+        }
+
+        querySnapshot.forEach((doc) => {
+          const alert = doc.id ? { id: doc.id, ...doc.data() } : doc.data();
+          tickerMessages.push(`[${alert.severity.toUpperCase()}] ${alert.type} in ${alert.location}: ${alert.message}`);
+
+          // Render active alert card
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.style.borderLeft = `5px solid ${getSeverityColor(alert.severity)}`;
+          
+          const alertDate = alert.timestamp ? alert.timestamp.toDate().toLocaleDateString() : 'Recent';
+
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 1rem;">
+              <span class="badge badge-${alert.severity.toLowerCase()}">${alert.severity}</span>
+              <small style="color: var(--text-muted-dark); font-weight:600;"><i class="fas fa-calendar-alt"></i> ${alertDate}</small>
+            </div>
+            <h3 style="margin-bottom:0.5rem;"><i class="fas fa-triangle-exclamation" style="color:${getSeverityColor(alert.severity)}"></i> ${alert.type}</h3>
+            <p style="color: var(--text-muted-dark); margin-bottom:1rem;">${alert.message}</p>
+            <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.9rem; font-weight:600;">
+              <i class="fas fa-location-dot" style="color: var(--primary-red)"></i>
+              <span>Location: ${alert.location}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        // Setup Alert Ticker if active alerts exist
+        if (tickerMessages.length > 0) {
+          const tickerBanner = document.getElementById('ticker-banner');
+          const tickerText = document.getElementById('ticker-text');
+          tickerText.innerText = tickerMessages.join('  •  ');
+          tickerBanner.style.display = 'flex';
+        }
+
+      } catch (err) {
+        console.error("Error pulling home page alerts:", err);
+        const grid = document.getElementById('alerts-grid');
+        grid.innerHTML = `
+          <div class="card" style="grid-column: span 2; text-align: center; color: var(--primary-red);">
+            <i class="fas fa-circle-exclamation" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+            <h3>Unable to fetch alerts</h3>
+            <p>Please configure your Firebase credentials to enable live database feeds.</p>
+          </div>
+        `;
+      }
+    });
+
+    function getSeverityColor(sev) {
+      switch(sev.toLowerCase()) {
+        case 'low': return 'var(--severity-low)';
+        case 'medium': return 'var(--severity-medium)';
+        case 'high': return 'var(--severity-high)';
+        case 'critical': return 'var(--severity-critical)';
+        default: return 'var(--primary-red)';
+      }
+    }
+  </script>
+</body>
+</html>

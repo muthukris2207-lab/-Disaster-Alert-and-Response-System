@@ -1,0 +1,23 @@
+{
+  "name": "disaster-alert-system",
+  "version": "1.0.0",
+  "description": "Disaster Alert and Response System with Vercel and Firebase",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required for static frontend'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "firebase": "^10.12.2",
+    "firebase-admin": "^12.1.1"
+  },
+  "devDependencies": {
+    "vercel": "^34.2.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

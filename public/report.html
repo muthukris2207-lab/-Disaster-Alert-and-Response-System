@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Report Incident | Disaster Alert System</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <header>
+    <a href="/" class="logo">
+      <i class="fas fa-shield-halved"></i>
+      <span>DISASTER RESPONSE</span>
+    </a>
+    <div class="nav-actions">
+      <nav id="navbar-links">
+        <a href="/">Home</a>
+        <a href="/emergency">Emergency Hub</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/report" class="active">Report Incident</a>
+      </nav>
+      <button class="theme-switch" id="theme-toggle">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid-2">
+      
+      <!-- Left side: Incident Reporting Form -->
+      <section class="card">
+        <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fas fa-bullhorn" style="color: var(--primary-red)"></i> File Incident Report
+        </h2>
+        
+        <form id="report-form">
+          <!-- Disaster Type -->
+          <div class="form-group">
+            <label for="rep-type">Disaster Category</label>
+            <select id="rep-type" class="form-control" required style="cursor:pointer;">
+              <option value="" disabled selected>Select category...</option>
+              <option value="Flood">🌊 Flood</option>
+              <option value="Fire">🔥 Fire / Wildfire</option>
+              <option value="Earthquake">🌋 Earthquake</option>
+              <option value="Cyclone">🌀 Cyclone / Hurricane</option>
+              <option value="Other">⚠️ Other Emergency</option>
+            </select>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label for="rep-desc">Description of Disaster</label>
+            <textarea id="rep-desc" class="form-control" style="min-height: 120px;" placeholder="Provide details like intensity, street names, houses affected, hazards..." required></textarea>
+          </div>
+
+          <!-- GPS Location Tagging -->
+          <div class="form-group">
+            <label>GPS Incident Coordinates</label>
+            <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(0,0,0,0.02); padding:0.8rem 1rem; border-radius:var(--border-radius-sm);" id="gps-status-container">
+              <i class="fas fa-location-dot" style="color: var(--primary-red);" id="gps-status-icon"></i>
+              <span id="gps-status-text" style="font-size:0.9rem; font-weight:600;">Verifying browser location permissions...</span>
+            </div>
+            <input type="hidden" id="rep-lat">
+            <input type="hidden" id="rep-lng">
+          </div>
+
+          <!-- Photo Upload with Preview -->
+          <div class="form-group" style="margin-bottom: 2rem;">
+            <label>Attach Evidence Photo (Optional)</label>
+            <label class="photo-uploader" for="rep-file">
+              <i class="fas fa-cloud-arrow-up" style="font-size: 2rem; color:var(--primary-red); margin-bottom: 0.5rem; display:block;"></i>
+              <span id="upload-label-text" style="font-weight:600;">Select Photo File</span>
+              <input type="file" id="rep-file" accept="image/*" style="display: none;">
+              <img class="photo-preview" id="photo-preview-img" alt="Evidence Preview">
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            <i class="fas fa-paper-plane"></i> Dispatch Incident Report
+          </button>
+        </form>
+      </section>
+
+      <!-- Right side: User Reports Tracker -->
+      <section class="card" style="align-self: flex-start;">
+        <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fas fa-clock-rotate-left" style="color: var(--primary-red)"></i> Your Submitted Reports
+        </h2>
+
+        <div id="user-reports-list" style="display:flex; flex-direction:column; gap:1.2rem;">
+          <div style="text-align: center; color: var(--text-muted-dark); padding: 2.5rem 0;">
+            <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--primary-red); margin-bottom: 0.5rem;"></i>
+            <p>Gathering reports...</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Disaster Alert and Response System. Developed for premium emergency deployment.</p>
+  </footer>
+
+  <script type="module">
+    import { firebaseInitPromise, auth, db, storage, showNotification } from '/js/app.js';
+    import { collection, addDoc, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    const latInput = document.getElementById('rep-lat');
+    const lngInput = document.getElementById('rep-lng');
+    const gpsStatusText = document.getElementById('gps-status-text');
+    const gpsStatusIcon = document.getElementById('gps-status-icon');
+    const reportsList = document.getElementById('user-reports-list');
+    const fileInput = document.getElementById('rep-file');
+    const previewImg = document.getElementById('photo-preview-img');
+    const uploadLabelText = document.getElementById('upload-label-text');
+
+    // Auto capture GPS coordinates
+    document.addEventListener('DOMContentLoaded', () => {
+      captureGPS();
+    });
+
+    function captureGPS() {
+      if (!navigator.geolocation) {
+        gpsStatusText.innerText = "Location tracking unsupported on browser.";
+        gpsStatusIcon.className = "fas fa-circle-exclamation";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          latInput.value = lat;
+          lngInput.value = lng;
+          gpsStatusText.innerText = `Location Tagged: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          gpsStatusIcon.className = "fas fa-circle-check";
+          gpsStatusIcon.style.color = "var(--success)";
+        },
+        (err) => {
+          console.warn("GPS Tag error:", err);
+          gpsStatusText.innerText = "Geolocation failed. Report will hold no coordinates.";
+          gpsStatusIcon.className = "fas fa-circle-exclamation";
+          gpsStatusIcon.style.color = "var(--severity-low)";
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+
+    // Photo Preview rendering
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          previewImg.src = event.target.result;
+          previewImg.style.display = 'block';
+          uploadLabelText.innerText = `Change Photo: ${file.name.substring(0, 15)}...`;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Load user previous reports
+    firebaseInitPromise.then(async () => {
+      const user = auth.currentUser;
+      if (user) {
+        await loadUserReports(user);
+      }
+    });
+
+    async function loadUserReports(user) {
+      try {
+        const reportsRef = collection(db, 'reports');
+        const q = query(reportsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+
+        reportsList.innerHTML = '';
+        
+        if (snapshot.empty) {
+          reportsList.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted-dark); padding: 2rem 0;">
+              <i class="fas fa-clipboard-list" style="font-size: 2.5rem; margin-bottom: 0.5rem;"></i>
+              <p>You haven't filed any disaster reports yet.</p>
+            </div>
+          `;
+          return;
+        }
+
+        snapshot.forEach(docSnap => {
+          const report = docSnap.data();
+          const date = report.createdAt ? report.createdAt.toDate().toLocaleDateString() : 'Recent';
+          const card = document.createElement('div');
+          
+          card.style.padding = '1.2rem';
+          card.style.borderRadius = 'var(--border-radius-sm)';
+          card.style.background = 'rgba(0,0,0,0.02)';
+          card.style.border = '1px solid rgba(0,0,0,0.04)';
+          
+          if (document.body.classList.contains('dark-mode')) {
+            card.style.background = 'rgba(255,255,255,0.02)';
+            card.style.borderColor = 'rgba(255,255,255,0.04)';
+          }
+
+          const photoHtml = report.photoUrl 
+            ? `<div style="margin-top:0.8rem;"><a href="${report.photoUrl}" target="_blank" style="color:var(--info); font-size:0.85rem; font-weight:600;"><i class="fas fa-image"></i> View Attachment</a></div>`
+            : '';
+
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+              <h4 style="margin:0;">${getEmoji(report.disasterType)} ${report.disasterType}</h4>
+              <span class="badge badge-${report.status.toLowerCase()}">${report.status}</span>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted-dark); margin-bottom:0.6rem;">${report.description}</p>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted-dark); font-weight:600;">
+              <span><i class="fas fa-calendar-alt"></i> Filed: ${date}</span>
+              <span><i class="fas fa-location-dot"></i> GPS: ${report.latitude ? `${report.latitude.toFixed(2)}, ${report.longitude.toFixed(2)}` : 'None'}</span>
+            </div>
+            ${photoHtml}
+          `;
+          reportsList.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error("Error gathering user reports:", err);
+        reportsList.innerHTML = `
+          <div style="text-align: center; color: var(--primary-red); padding: 2rem 0;">
+            <p>Unable to retrieve report history. Configure Firebase first.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Submit report
+    document.getElementById('report-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const user = auth.currentUser;
+      if (!user) {
+        showNotification("Please authenticate before filing reports.", "error");
+        return;
+      }
+
+      const disasterType = document.getElementById('rep-type').value;
+      const description = document.getElementById('rep-desc').value.trim();
+      const file = fileInput.files[0];
+      const lat = parseFloat(latInput.value) || null;
+      const lng = parseFloat(lngInput.value) || null;
+
+      try {
+        let photoUrl = null;
+
+        // 1. Upload photo if selected
+        if (file) {
+          showNotification("Uploading media attachment...", "info");
+          const uniqueName = `${Date.now()}_${file.name}`;
+          const storageRef = ref(storage, `incident_photos/${uniqueName}`);
+          const uploadSnapshot = await uploadBytes(storageRef, file);
+          photoUrl = await getDownloadURL(uploadSnapshot.ref);
+          console.log("Uploaded successfully. URL:", photoUrl);
+        }
+
+        // 2. Submit report through REST API or Firestore directly
+        // We submit via Vercel serverless function `/api/reports` to utilize serverless logic.
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/reports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            disasterType,
+            description,
+            photoUrl,
+            latitude: lat,
+            longitude: lng
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || "Report dispatch failed");
+        }
+
+        showNotification("Incident report submitted. Admin review pending.", "success");
+        
+        // Reset Form
+        document.getElementById('rep-type').value = '';
+        document.getElementById('rep-desc').value = '';
+        fileInput.value = '';
+        previewImg.style.display = 'none';
+        uploadLabelText.innerText = 'Select Photo File';
+
+        // Reload lists
+        await loadUserReports(user);
+      } catch (err) {
+        console.error("Report submit failed:", err);
+        showNotification("Filing report failed: " + err.message, "error");
+      }
+    });
+
+    function getEmoji(type) {
+      switch(type) {
+        case 'Flood': return '🌊';
+        case 'Fire': return '🔥';
+        case 'Earthquake': return '🌋';
+        case 'Cyclone': return '🌀';
+        default: return '⚠️';
+      }
+    }
+  </script>
+</body>
+</html>
