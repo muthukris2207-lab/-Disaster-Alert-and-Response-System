@@ -446,7 +446,6 @@
       } catch(err) {
         console.warn("Backend queue fetch failed, trying direct client-side read:", err);
         try {
-          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
           const repSnap = await getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc')));
           const reports = [];
           repSnap.forEach(d => reports.push({ id: d.id, type: 'report', ...d.data(), createdAt: d.data().createdAt ? d.data().createdAt.toDate() : null }));
@@ -631,7 +630,6 @@
           alerts = await response.json();
         } else {
           // Fallback to reading alerts directly via client Firestore SDK
-          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
           const snap = await getDocs(query(collection(db, 'alerts'), orderBy('timestamp', 'desc')));
           snap.forEach(docSnap => {
             alerts.push({ id: docSnap.id, ...docSnap.data(), timestamp: docSnap.data().timestamp ? docSnap.data().timestamp.toDate() : null });
@@ -685,7 +683,6 @@
           volunteers = await response.json();
         } else {
           // Fallback to client-side read
-          const { getDocs, query, orderBy } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
           const snap = await getDocs(query(collection(db, 'volunteers'), orderBy('createdAt', 'desc')));
           snap.forEach(docSnap => {
             volunteers.push({ id: docSnap.id, ...docSnap.data() });
@@ -845,7 +842,6 @@
           shelters = await response.json();
         } else {
           // Fallback to client-side read
-          const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
           const snap = await getDocs(collection(db, 'shelters'));
           snap.forEach(docSnap => {
             shelters.push({ id: docSnap.id, ...docSnap.data() });
@@ -925,7 +921,6 @@
       } catch (err) {
         console.warn("Backend API loadUsersList failed, trying direct client-side read:", err);
         try {
-          const { getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
           const snap = await getDocs(collection(db, 'users'));
           const users = [];
           snap.forEach(d => users.push({ uid: d.id, ...d.data() }));
