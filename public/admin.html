@@ -529,11 +529,6 @@
       container.querySelectorAll('.reject-btn').forEach(btn => {
         btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Rejected'));
       });
-
-      } catch(err) {
-        console.error(err);
-        container.innerHTML = `<p style="color:var(--primary-red); text-align:center;">Failed to load incident reports queue.</p>`;
-      }
     }
 
     async function updateQueueStatus(id, type, status) {
