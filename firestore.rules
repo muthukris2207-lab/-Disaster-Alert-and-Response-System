@@ -7,9 +7,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper function to check if the user is an admin
+    // Helper function to check if the user is an admin safely
     function isAdmin() {
       return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
