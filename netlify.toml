@@ -1,0 +1,7 @@
+# Netlify Configuration File
+# This overrides any manual settings in the Netlify UI and ensures
+# the publish directory is correctly set to the "public" folder.
+
+[build]
+  publish = "public"
+  command = "echo 'Static build complete'"
