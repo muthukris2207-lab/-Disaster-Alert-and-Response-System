@@ -122,13 +122,13 @@ function setupAuthObserver() {
         // If current page is login/register, send to dashboard
         const path = window.location.pathname;
         if (path.endsWith('login') || path.endsWith('login.html') || path.endsWith('register') || path.endsWith('register.html')) {
-          window.location.href = '/dashboard';
+          window.location.href = 'dashboard.html';
         }
         
         // If current page is admin.html, ensure user is indeed an admin
         if (path.endsWith('admin') || path.endsWith('admin.html')) {
           if (userProfile.role !== 'admin') {
-            window.location.href = '/dashboard';
+            window.location.href = 'dashboard.html';
           }
         }
       }
@@ -139,7 +139,7 @@ function setupAuthObserver() {
       const isProtected = protectedPaths.some(p => path.endsWith(p));
       
       if (isProtected) {
-        window.location.href = '/login';
+        window.location.href = 'login.html';
       }
     }
   });
@@ -165,24 +165,24 @@ function updateNavUI(user) {
   if (!navContainer) return;
   
   let html = `
-    <a href="/" class="${isActive('/')}">Home</a>
-    <a href="/emergency" class="${isActive('/emergency')}">Emergency Hub</a>
+    <a href="index.html" class="${isActive('index.html')}">Home</a>
+    <a href="emergency.html" class="${isActive('emergency.html')}">Emergency Hub</a>
   `;
   
   if (user) {
     html += `
-      <a href="/dashboard" class="${isActive('/dashboard')}">Dashboard</a>
-      <a href="/report" class="${isActive('/report')}">Report Incident</a>
+      <a href="dashboard.html" class="${isActive('dashboard.html')}">Dashboard</a>
+      <a href="report.html" class="${isActive('report.html')}">Report Incident</a>
     `;
     
     // Check role asynchronously, but prepare UI immediately
     fetchUserProfile(user.uid).then(profile => {
       if (profile && profile.role === 'admin') {
-        const adminLinkExists = document.querySelector('a[href="/admin"]');
+        const adminLinkExists = document.querySelector('a[href="admin.html"]');
         if (!adminLinkExists) {
           const adminLink = document.createElement('a');
-          adminLink.href = '/admin';
-          adminLink.className = isActive('/admin');
+          adminLink.href = 'admin.html';
+          adminLink.className = isActive('admin.html');
           adminLink.innerText = 'Admin Portal';
           // Insert admin link before logout button or at the end of links
           navContainer.appendChild(adminLink);
@@ -197,8 +197,8 @@ function updateNavUI(user) {
     `;
   } else {
     html += `
-      <a href="/login" class="${isActive('/login')}">Login</a>
-      <a href="/register" class="${isActive('/register')}">Register</a>
+      <a href="login.html" class="${isActive('login.html')}">Login</a>
+      <a href="register.html" class="${isActive('register.html')}">Register</a>
     `;
   }
   
@@ -210,7 +210,7 @@ function updateNavUI(user) {
     logoutBtn.addEventListener('click', async () => {
       try {
         await signOut(auth);
-        window.location.href = '/login';
+        window.location.href = 'login.html';
       } catch (err) {
         showNotification("Logout failed: " + err.message, "error");
       }
@@ -220,7 +220,7 @@ function updateNavUI(user) {
 
 function isActive(path) {
   const currentPath = window.location.pathname;
-  if (path === '/' && (currentPath === '/' || currentPath === '/index.html')) return 'active';
+  if (path === 'index.html' && (currentPath === 'index.html' || currentPath === '/index.html')) return 'active';
   return (currentPath.endsWith(path) || currentPath.endsWith(path + '.html')) ? 'active' : '';
 }
 
