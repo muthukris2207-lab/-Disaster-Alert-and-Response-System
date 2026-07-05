@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | Disaster Alert System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Leaflet JS for Map -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    /* Styling for admin sections */
+    .admin-nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid rgba(0,0,0,0.05);
+      padding-bottom: 0.8rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .admin-tab {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-muted-dark);
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: var(--border-radius-sm);
+      transition: all var(--transition-fast);
+    }
+    body.dark-mode .admin-tab {
+      color: var(--text-muted-light);
+    }
+    .admin-tab.active, .admin-tab:hover {
+      background-color: var(--primary-red);
+      color: white;
+    }
+    .admin-section {
+      display: none;
+    }
+    .admin-section.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html" class="logo">
+      <i class="fas fa-shield-halved"></i>
+      <span>DISASTER RESPONSE</span>
+    </a>
+    <div class="nav-actions">
+      <nav id="navbar-links">
+        <a href="index.html">Home</a>
+        <a href="emergency.html">Emergency Hub</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="report.html">Report Incident</a>
+        <a href="admin.html" class="active">Admin Portal</a>
+      </nav>
+      <button class="theme-switch" id="theme-toggle">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- STATS PANEL -->
+    <section class="stats-panel">
+      <div class="stat-box">
+        <div class="stat-number" id="stat-reports">0</div>
+        <div class="stat-label">Total Reports</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="stat-shelters">0</div>
+        <div class="stat-label">Active Shelters</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="stat-volunteers">0</div>
+        <div class="stat-label">Volunteers</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="stat-alerts">0</div>
+        <div class="stat-label">Alerts Broadcast</div>
+      </div>
+    </section>
+
+    <!-- TABBED NAVIGATION -->
+    <div class="admin-nav">
+      <button class="admin-tab active" data-tab="tab-monitoring"><i class="fas fa-map"></i> Disaster Activity Map</button>
+      <button class="admin-tab" data-tab="tab-incidents"><i class="fas fa-triangle-exclamation"></i> Review Incidents</button>
+      <button class="admin-tab" data-tab="tab-broadcast"><i class="fas fa-satellite-dish"></i> Publish Alerts</button>
+      <button class="admin-tab" data-tab="tab-volunteers"><i class="fas fa-hands-helping"></i> Coordinate Volunteers</button>
+      <button class="admin-tab" data-tab="tab-shelters"><i class="fas fa-house-chimney-medical"></i> Manage Shelters</button>
+      <button class="admin-tab" data-tab="tab-users"><i class="fas fa-users-gear"></i> User Registry</button>
+    </div>
+
+    <!-- SECTION 1: DISASTER ACTIVITY MAP -->
+    <section class="admin-section active" id="tab-monitoring">
+      <div class="card">
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;"><i class="fas fa-earth-americas" style="color: var(--primary-red)"></i> Real-Time Disaster Mapping</h2>
+        <p style="color: var(--text-muted-dark); font-size: 0.9rem;">Interactive Leaflet.js layout mapping all verified or pending incidents.</p>
+        <div id="map"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: REVIEW INCIDENTS -->
+    <section class="admin-section" id="tab-incidents">
+      <div class="card">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;"><i class="fas fa-list-check" style="color: var(--primary-red)"></i> Incident Reports & SOS Queue</h2>
+        
+        <div style="display:flex; flex-direction:column; gap:1.5rem;" id="queue-container">
+          <div style="text-align: center; color: var(--text-muted-dark); padding: 2rem;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color:var(--primary-red); margin-bottom:0.5rem;"></i>
+            <p>Loading queue feeds...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: PUBLISH ALERTS -->
+    <section class="admin-section" id="tab-broadcast">
+      <div class="grid-2" style="margin-top:0;">
+        <div class="card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-bullhorn" style="color: var(--primary-red)"></i> Publish Alert Warning
+          </h2>
+          <form id="broadcast-form">
+            <div class="form-group">
+              <label for="broadcast-type">Disaster Category</label>
+              <input type="text" id="broadcast-type" class="form-control" placeholder="e.g. Flash Flood / Forest Fire" required>
+            </div>
+            <div class="form-group">
+              <label for="broadcast-severity">Alert Severity</label>
+              <select id="broadcast-severity" class="form-control" required>
+                <option value="Low">Low (Warning)</option>
+                <option value="Medium">Medium (Take Precaution)</option>
+                <option value="High">High (Dangerous Conditions)</option>
+                <option value="Critical">Critical (Immediate Evacuation)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="broadcast-location">Affected Location (City/Region/All)</label>
+              <input type="text" id="broadcast-location" class="form-control" placeholder="e.g. Downtown, Seattle, or All" required>
+            </div>
+            <div class="form-group">
+              <label for="broadcast-message">Detailed Instructions</label>
+              <textarea id="broadcast-message" class="form-control" style="min-height: 100px;" placeholder="Tell citizens how to react, where shelters are located..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+              <i class="fas fa-radio"></i> Broadcast via FCM & Save
+            </button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem;"><i class="fas fa-list-check"></i> Alert Broadcast History</h2>
+          <div style="display:flex; flex-direction:column; gap:1rem; max-height: 400px; overflow-y: auto;" id="history-alerts-container">
+            <!-- Loader -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: COORDINATE VOLUNTEERS -->
+    <section class="admin-section" id="tab-volunteers">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h3 style="font-size:1.15rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-comment-sms" style="color:var(--primary-red);"></i> Prefill SMS Warning Message</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted-dark); margin-bottom:0.8rem;">Type an emergency message below. Clicking the "SMS" buttons in any table will open your SMS messaging app prefilled with this text.</p>
+        <textarea class="form-control sms-global-body" rows="2" style="min-height:55px;" placeholder="Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.">Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.</textarea>
+      </div>
+      <div class="card">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1rem;"><i class="fas fa-handshake-angle" style="color: var(--success)"></i> Registered Volunteers & Deployments</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Skills Inventory</th>
+                <th>Area Scope</th>
+                <th>Current Task Assignment</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="volunteers-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: MANAGE SHELTERS -->
+    <section class="admin-section" id="tab-shelters">
+      <div class="grid-2" style="margin-top:0;">
+        <div class="card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem;" id="shelter-form-title">
+            <i class="fas fa-circle-plus" style="color: var(--primary-red)"></i> Add Safety Shelter
+          </h2>
+          <form id="shelter-form">
+            <input type="hidden" id="shelter-id">
+            <div class="form-group">
+              <label for="she-name">Shelter Name</label>
+              <input type="text" id="she-name" class="form-control" placeholder="e.g. Red Cross Gym Center" required>
+            </div>
+            <div class="form-group">
+              <label for="she-address">Street Address</label>
+              <input type="text" id="she-address" class="form-control" placeholder="Street Name, City" required>
+            </div>
+            <div class="grid-2" style="gap: 1rem; margin-top: 0; margin-bottom: 0;">
+              <div class="form-group">
+                <label for="she-lat">Latitude</label>
+                <input type="number" step="any" id="she-lat" class="form-control" placeholder="47.60">
+              </div>
+              <div class="form-group">
+                <label for="she-lng">Longitude</label>
+                <input type="number" step="any" id="she-lng" class="form-control" placeholder="-122.33">
+              </div>
+            </div>
+            <div class="grid-2" style="gap: 1rem; margin-top: 0; margin-bottom: 0;">
+              <div class="form-group">
+                <label for="she-capacity">Max Capacity</label>
+                <input type="number" id="she-capacity" class="form-control" placeholder="150" required>
+              </div>
+              <div class="form-group">
+                <label for="she-occupancy">Current Occupancy</label>
+                <input type="number" id="she-occupancy" class="form-control" placeholder="0" value="0" required>
+              </div>
+            </div>
+            <div style="display:flex; gap:1.5rem; margin:1.2rem 0;">
+              <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="she-food" style="scale:1.3; accent-color:var(--primary-red);"> Food Available
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="she-medical" style="scale:1.3; accent-color:var(--primary-red);"> Medical Help Available
+              </label>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fas fa-floppy-disk"></i> Save Shelter</button>
+              <button type="button" id="clear-shelter-btn" class="btn btn-secondary" style="display:none;"><i class="fas fa-xmark"></i> Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2 style="font-size: 1.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem;"><i class="fas fa-warehouse"></i> Shelter Registries</h2>
+          <div style="display:flex; flex-direction:column; gap:1rem; max-height:450px; overflow-y:auto;" id="admin-shelters-list">
+            <!-- Loader -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6: USER REGISTRY -->
+    <section class="admin-section" id="tab-users">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h3 style="font-size:1.15rem; margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-comment-sms" style="color:var(--primary-red);"></i> Prefill SMS Warning Message</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted-dark); margin-bottom:0.8rem;">Type an emergency message below. Clicking the "SMS" buttons in any table will open your SMS messaging app prefilled with this text.</p>
+        <textarea class="form-control sms-global-body" rows="2" style="min-height:55px;" placeholder="Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.">Emergency Alert: Dangerous weather conditions detected. Please check the dashboard.</textarea>
+      </div>
+      <div class="card">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1rem;"><i class="fas fa-users-gear" style="color: var(--primary-red)"></i> User Accounts & Deactivation Control</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>UID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Account Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Disaster Alert and Response System. Developed for premium emergency deployment.</p>
+  </footer>
+
+  <script type="module">
+    import { firebaseInitPromise, auth, db, showNotification } from '/js/app.js';
+    import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, deleteDoc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    let map = null;
+    let mapMarkers = [];
+
+    // Setup Admin Panel Tab clicks
+    const tabs = document.querySelectorAll('.admin-tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const target = tab.getAttribute('data-tab');
+        document.querySelectorAll('.admin-section').forEach(sec => {
+          sec.classList.remove('active');
+        });
+        document.getElementById(target).classList.add('active');
+
+        // Force Leaflet recalculation when tab opens
+        if (target === 'tab-monitoring' && map) {
+          setTimeout(() => map.invalidateSize(), 200);
+        }
+      });
+    });
+
+    // Sync SMS template bodies across tabs in real-time
+    document.addEventListener('input', (e) => {
+      if (e.target.classList.contains('sms-global-body')) {
+        document.querySelectorAll('.sms-global-body').forEach(other => {
+          if (other !== e.target) {
+            other.value = e.target.value;
+          }
+        });
+      }
+    });
+
+    // Run verification on initial SDK promise completion
+    firebaseInitPromise.then(async () => {
+      // Check Admin status
+      const user = auth.currentUser;
+      if (user) {
+        await refreshDashboardStats();
+        initLeafletMap();
+        await loadIncidentQueue();
+        await loadAlertHistory();
+        await loadVolunteersList();
+        await loadSheltersList();
+        await loadUsersList();
+      }
+    });
+
+    // 1. STATS REFRESHER
+    async function refreshDashboardStats() {
+      try {
+        const reportsSnap = await getDocs(collection(db, 'reports'));
+        const emergencySnap = await getDocs(collection(db, 'emergency_requests'));
+        const sheltersSnap = await getDocs(collection(db, 'shelters'));
+        const volunteersSnap = await getDocs(collection(db, 'volunteers'));
+        const alertsSnap = await getDocs(collection(db, 'alerts'));
+
+        document.getElementById('stat-reports').innerText = reportsSnap.size + emergencySnap.size;
+        document.getElementById('stat-shelters').innerText = sheltersSnap.size;
+        document.getElementById('stat-volunteers').innerText = volunteersSnap.size;
+        document.getElementById('stat-alerts').innerText = alertsSnap.size;
+      } catch (err) {
+        console.error("Stats query failed:", err);
+      }
+    }
+
+    // 2. LEAFLET MAP INITS
+    function initLeafletMap() {
+      // Coordinates default (centered around US/Global, user geolocations will reposition it)
+      map = L.map('map').setView([0, 0], 2);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+
+      // Fetch incident list and plot markers
+      plotMapMarkers();
+    }
+
+    async function plotMapMarkers() {
+      if (!map) return;
+      
+      // Clear old markers
+      mapMarkers.forEach(m => map.removeLayer(m));
+      mapMarkers = [];
+
+      try {
+        const reportsSnap = await getDocs(collection(db, 'reports'));
+        const emergencySnap = await getDocs(collection(db, 'emergency_requests'));
+        const coordinates = [];
+
+        reportsSnap.forEach(docSnap => {
+          const report = docSnap.data();
+          if (report.latitude && report.longitude && report.status !== 'Rejected') {
+            const marker = L.marker([report.latitude, report.longitude], {
+              icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style='background-color: var(--primary-red); border: 2px solid white; width:15px; height:15px; border-radius:50%; box-shadow:0 0 5px rgba(0,0,0,0.5);'></div>`,
+                iconSize: [15, 15]
+              })
+            }).addTo(map);
+
+            marker.bindPopup(`
+              <strong style="color:var(--primary-red); font-size:1.1rem;">⚠️ ${report.disasterType}</strong><br>
+              <strong>Description:</strong> ${report.description}<br>
+              <strong>Status:</strong> ${report.status}
+            `);
+
+            mapMarkers.push(marker);
+            coordinates.push([report.latitude, report.longitude]);
+          }
+        });
+
+        emergencySnap.forEach(docSnap => {
+          const request = docSnap.data();
+          if (request.latitude && request.longitude && request.status !== 'Rejected') {
+            const marker = L.marker([request.latitude, request.longitude], {
+              icon: L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style='background-color: var(--severity-critical); border: 2px solid white; width:15px; height:15px; border-radius:50%; animation: pulse-red 1s infinite;'></div>`,
+                iconSize: [15, 15]
+              })
+            }).addTo(map);
+
+            marker.bindPopup(`
+              <strong style="color:var(--severity-critical); font-size:1.1rem;"><i class="fas fa-bell"></i> SOS: Rescue Request</strong><br>
+              <strong>Person:</strong> ${request.name}<br>
+              <strong>Needed:</strong> ${request.typeOfHelp}<br>
+              <strong>Phone:</strong> <a href="tel:${request.phone}">${request.phone}</a>
+            `);
+
+            mapMarkers.push(marker);
+            coordinates.push([request.latitude, request.longitude]);
+          }
+        });
+
+        // Fit map boundaries around coordinate sets
+        if (coordinates.length > 0) {
+          const bounds = L.latLngBounds(coordinates);
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        }
+      } catch (err) {
+        console.error("Map plot failed:", err);
+      }
+    }
+
+    // 3. INCIDENTS & SOS QUEUE
+    async function loadIncidentQueue() {
+      const container = document.getElementById('queue-container');
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/reports', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        
+        let allItems = [];
+        if (response.ok) {
+          const data = await response.json();
+          allItems = [...data.reports, ...data.emergencyRequests];
+        } else {
+          throw new Error("API failed");
+        }
+        renderQueueItems(allItems, container);
+      } catch(err) {
+        console.warn("Backend queue fetch failed, trying direct client-side read:", err);
+        try {
+          const repSnap = await getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc')));
+          const reports = [];
+          repSnap.forEach(d => reports.push({ id: d.id, type: 'report', ...d.data(), createdAt: d.data().createdAt ? d.data().createdAt.toDate() : null }));
+
+          const emSnap = await getDocs(query(collection(db, 'emergency_requests'), orderBy('createdAt', 'desc')));
+          const emergencyRequests = [];
+          emSnap.forEach(d => emergencyRequests.push({ id: d.id, type: 'emergency_request', ...d.data(), createdAt: d.data().createdAt ? d.data().createdAt.toDate() : null }));
+
+          const combined = [...reports, ...emergencyRequests].sort((a,b) => {
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt - a.createdAt;
+          });
+
+          renderQueueItems(combined, container);
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          container.innerHTML = `<p style="color:var(--primary-red); text-align:center;">Failed to load incident reports queue.</p>`;
+        }
+      }
+    }
+
+    function renderQueueItems(allItems, container) {
+      container.innerHTML = '';
+      if (allItems.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:var(--text-muted-dark);">Queue empty. No reports filed.</p>`;
+        return;
+      }
+
+      allItems.forEach(item => {
+        const card = document.createElement('div');
+        card.style.padding = '1.5rem';
+        card.style.borderRadius = 'var(--border-radius-sm)';
+        card.style.background = 'rgba(0,0,0,0.02)';
+        card.style.border = '1px solid rgba(0,0,0,0.06)';
+        card.style.position = 'relative';
+
+        if (document.body.classList.contains('dark-mode')) {
+          card.style.background = 'rgba(255,255,255,0.02)';
+          card.style.borderColor = 'rgba(255,255,255,0.06)';
+        }
+
+        const isSos = item.type === 'emergency_request';
+        const title = isSos 
+          ? `<span style="color:var(--severity-critical); font-weight:700;"><i class="fas fa-handshake-angle"></i> SOS Request from ${item.name}</span>`
+          : `<span><i class="fas fa-triangle-exclamation" style="color:var(--primary-red);"></i> ${item.disasterType} Report</span>`;
+
+        const details = isSos
+          ? `<strong>Help Required:</strong> ${item.typeOfHelp}<br><strong>Contact Phone:</strong> <a href="tel:${item.phone}">${item.phone}</a>`
+          : `<strong>Description:</strong> ${item.description}`;
+
+        const imageLink = item.photoUrl 
+          ? `<div style="margin-top:0.8rem;"><a href="${item.photoUrl}" target="_blank" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.8rem;"><i class="fas fa-image"></i> View Attachment</a></div>`
+          : '';
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+            ${title}
+            <span class="badge badge-${item.status.toLowerCase()}">${item.status}</span>
+          </div>
+          <p style="font-size:0.9rem; margin-bottom:1rem;">${details}</p>
+          <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted-dark); font-weight:600;">
+            <span><i class="fas fa-location-arrow"></i> Location: ${item.location || (item.latitude ? `${item.latitude.toFixed(2)}, ${item.longitude.toFixed(2)}` : 'Unknown')}</span>
+            <span><i class="fas fa-calendar-check"></i> Date: ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recent'}</span>
+          </div>
+          ${imageLink}
+          
+          <div style="margin-top: 1.5rem; display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="btn btn-primary approve-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Verify</button>
+            <button class="btn btn-danger reject-btn" data-id="${item.id}" data-type="${item.type}" style="padding:0.4rem 1rem; font-size:0.85rem; box-shadow:none;"><i class="fas fa-xmark"></i> Reject</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Event listeners for approval/rejection
+      container.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Verified'));
+      });
+      container.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', () => updateQueueStatus(btn.dataset.id, btn.dataset.type, 'Rejected'));
+      });
+    }
+
+    async function updateQueueStatus(id, type, status) {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/reports', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ id, type, status })
+        });
+
+        if (!response.ok) throw new Error("Server API failed.");
+        showNotification(`Report status updated to ${status}.`, "success");
+      } catch (err) {
+        console.warn("Backend API status update failed, trying direct client-side update:", err);
+        try {
+          const collectionName = type === 'emergency_request' ? 'emergency_requests' : 'reports';
+          await updateDoc(doc(db, collectionName, id), {
+            status,
+            updatedAt: new Date()
+          });
+          showNotification(`Report status updated to ${status} directly.`, "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed updating report status: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+      
+      await loadIncidentQueue();
+      await refreshDashboardStats();
+      plotMapMarkers();
+    }
+
+    // 4. PUBLISH ALERTS & BROADCAST HISTORY
+    document.getElementById('broadcast-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const type = document.getElementById('broadcast-type').value.trim();
+      const severity = document.getElementById('broadcast-severity').value;
+      const location = document.getElementById('broadcast-location').value.trim();
+      const message = document.getElementById('broadcast-message').value.trim();
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/alerts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ type, severity, location, message })
+        });
+
+        if (!response.ok) throw new Error("Server API failed.");
+        showNotification("Alert broadcast complete via Push Notifications.", "success");
+      } catch (err) {
+        console.warn("Backend API alert publish failed, trying direct client-side write:", err);
+        try {
+          await addDoc(collection(db, "alerts"), {
+            type,
+            severity,
+            location,
+            message,
+            timestamp: new Date(),
+            status: 'Active',
+            createdBy: user.uid
+          });
+          showNotification("Alert published directly (FCM Push skipped).", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed to publish alert: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+
+      // Reset form
+      document.getElementById('broadcast-type').value = '';
+      document.getElementById('broadcast-location').value = '';
+      document.getElementById('broadcast-message').value = '';
+      
+      await loadAlertHistory();
+      await refreshDashboardStats();
+    });
+
+    async function loadAlertHistory() {
+      const container = document.getElementById('history-alerts-container');
+      try {
+        const response = await fetch('/api/alerts');
+        let alerts = [];
+        if (response.ok) {
+          alerts = await response.json();
+        } else {
+          // Fallback to reading alerts directly via client Firestore SDK
+          const snap = await getDocs(query(collection(db, 'alerts'), orderBy('timestamp', 'desc')));
+          snap.forEach(docSnap => {
+            alerts.push({ id: docSnap.id, ...docSnap.data(), timestamp: docSnap.data().timestamp ? docSnap.data().timestamp.toDate() : null });
+          });
+        }
+
+        container.innerHTML = '';
+        if (alerts.length === 0) {
+          container.innerHTML = `<p style="text-align:center; color:var(--text-muted-dark);">No alerts published yet.</p>`;
+          return;
+        }
+
+        alerts.forEach(alert => {
+          const item = document.createElement('div');
+          item.style.padding = '0.8rem';
+          item.style.borderRadius = 'var(--border-radius-sm)';
+          item.style.background = 'rgba(0,0,0,0.01)';
+          item.style.border = '1px solid rgba(0,0,0,0.04)';
+          item.style.borderLeft = `3px solid ${getSeverityColor(alert.severity)}`;
+
+          const date = alert.timestamp ? new Date(alert.timestamp).toLocaleDateString() : 'Recent';
+          item.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.3rem;">
+              <strong style="font-size:0.9rem;">${alert.type} (${alert.location})</strong>
+              <span class="badge badge-${alert.severity.toLowerCase()}" style="font-size:0.65rem; padding:0.1rem 0.4rem;">${alert.severity}</span>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-muted-dark);">${alert.message}</p>
+            <small style="color:var(--text-muted-dark); font-size:0.7rem; font-weight:600;"><i class="fas fa-clock"></i> Sent: ${date}</small>
+          `;
+          container.appendChild(item);
+        });
+
+      } catch (err) {
+        container.innerHTML = `<p style="color:var(--primary-red); text-align:center;">Unable to load alerts history.</p>`;
+      }
+    }
+
+    // 5. VOLUNTEERS COORDINATION
+    async function loadVolunteersList() {
+      const tbody = document.getElementById('volunteers-table-body');
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/volunteers', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        let volunteers = [];
+        if (response.ok) {
+          volunteers = await response.json();
+        } else {
+          // Fallback to client-side read
+          const snap = await getDocs(query(collection(db, 'volunteers'), orderBy('createdAt', 'desc')));
+          snap.forEach(docSnap => {
+            volunteers.push({ id: docSnap.id, ...docSnap.data() });
+          });
+        }
+
+        tbody.innerHTML = '';
+        if (volunteers.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted-dark);">No volunteers registered yet.</td></tr>`;
+          return;
+        }
+
+        volunteers.forEach(v => {
+          const tr = document.createElement('tr');
+          const smsBtn = v.phone 
+            ? `<button class="btn btn-secondary send-sms-btn" data-phone="${v.phone}" style="margin-top:0.3rem; padding:0.25rem 0.5rem; font-size:0.75rem; border-radius:4px; box-shadow:none;"><i class="fas fa-comment-sms"></i> SMS</button>`
+            : `<span style="font-size:0.75rem; color:var(--text-muted-dark);">No Phone</span>`;
+
+          tr.innerHTML = `
+            <td><strong>${v.name}</strong></td>
+            <td>Email: ${v.email}<br>Tel: <a href="tel:${v.phone}">${v.phone}</a><br>${smsBtn}</td>
+            <td>${v.skills}</td>
+            <td>${v.availableArea}</td>
+            <td>
+              <input type="text" class="form-control vol-task-input" value="${v.assignedTask || ''}" style="padding:0.4rem; font-size:0.85rem;" placeholder="Assign action item...">
+            </td>
+            <td>
+              <button class="btn btn-primary assign-task-btn" data-id="${v.id}" style="padding:0.4rem 0.8rem; font-size:0.8rem; box-shadow:none;"><i class="fas fa-plus"></i> Assign</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // Event listener for task assignments
+        tbody.querySelectorAll('.assign-task-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const row = btn.parentElement.parentElement;
+            const task = row.querySelector('.vol-task-input').value.trim();
+            await assignVolunteerTask(btn.dataset.id, task);
+          });
+        });
+
+        // Event listener for SMS alerts
+        tbody.querySelectorAll('.send-sms-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const phone = btn.dataset.phone;
+            const smsText = document.querySelector('.sms-global-body').value.trim() || "Emergency Alert: Please check the Disaster Response dashboard for instructions.";
+            window.open(`sms:${phone}?body=${encodeURIComponent(smsText)}`, '_blank');
+          });
+        });
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--primary-red);">Could not load volunteers.</td></tr>`;
+      }
+    }
+
+    async function assignVolunteerTask(id, assignedTask) {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/volunteers', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ id, assignedTask })
+        });
+        if (!response.ok) throw new Error();
+        showNotification("Task assigned successfully to volunteer.", "success");
+      } catch (err) {
+        console.warn("Backend API task assign failed, trying direct update:", err);
+        try {
+          await updateDoc(doc(db, "volunteers", id), {
+            assignedTask: assignedTask || '',
+            updatedAt: new Date()
+          });
+          showNotification("Task assigned to volunteer directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed to assign volunteer task: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+      await loadVolunteersList();
+    }
+
+    // 6. MANAGE SHELTERS (ADD / EDIT / LIST)
+    const shelterForm = document.getElementById('shelter-form');
+    const clearShelterBtn = document.getElementById('clear-shelter-btn');
+
+    shelterForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const id = document.getElementById('shelter-id').value;
+      const name = document.getElementById('she-name').value.trim();
+      const address = document.getElementById('she-address').value.trim();
+      const latitude = parseFloat(document.getElementById('she-lat').value) || null;
+      const longitude = parseFloat(document.getElementById('she-lng').value) || null;
+      const capacity = parseInt(document.getElementById('she-capacity').value);
+      const occupancy = parseInt(document.getElementById('she-occupancy').value) || 0;
+      const foodAvailable = document.getElementById('she-food').checked;
+      const medicalAvailable = document.getElementById('she-medical').checked;
+
+      const method = id ? 'PUT' : 'POST';
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/shelters', {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            id, name, address, latitude, longitude, capacity, occupancy, foodAvailable, medicalAvailable
+          })
+        });
+
+        if (!response.ok) throw new Error();
+        showNotification("Shelter settings saved successfully.", "success");
+      } catch(err) {
+        console.warn("Backend API shelter save failed, trying direct write:", err);
+        try {
+          if (id) {
+            // Update
+            await updateDoc(doc(db, "shelters", id), {
+              name, address, latitude, longitude, capacity, occupancy, foodAvailable, medicalAvailable,
+              updatedAt: new Date()
+            });
+          } else {
+            // Create
+            await addDoc(collection(db, "shelters"), {
+              name, address, latitude, longitude, capacity, occupancy, foodAvailable, medicalAvailable,
+              createdAt: new Date()
+            });
+          }
+          showNotification("Shelter settings saved directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed saving shelter parameters: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+
+      resetShelterForm();
+      await loadSheltersList();
+      await refreshDashboardStats();
+    });
+
+    clearShelterBtn.addEventListener('click', resetShelterForm);
+
+    function resetShelterForm() {
+      shelterForm.reset();
+      document.getElementById('shelter-id').value = '';
+      document.getElementById('shelter-form-title').innerHTML = `<i class="fas fa-circle-plus" style="color: var(--primary-red)"></i> Add Safety Shelter`;
+      clearShelterBtn.style.display = 'none';
+    }
+
+    async function loadSheltersList() {
+      const container = document.getElementById('admin-shelters-list');
+      try {
+        const response = await fetch('/api/shelters');
+        let shelters = [];
+        if (response.ok) {
+          shelters = await response.json();
+        } else {
+          // Fallback to client-side read
+          const snap = await getDocs(collection(db, 'shelters'));
+          snap.forEach(docSnap => {
+            shelters.push({ id: docSnap.id, ...docSnap.data() });
+          });
+        }
+
+        container.innerHTML = '';
+        if (shelters.length === 0) {
+          container.innerHTML = `<p style="text-align:center; color:var(--text-muted-dark);">No shelters created yet.</p>`;
+          return;
+        }
+
+        shelters.forEach(s => {
+          const item = document.createElement('div');
+          item.style.padding = '1rem';
+          item.style.borderRadius = 'var(--border-radius-sm)';
+          item.style.background = 'rgba(0,0,0,0.01)';
+          item.style.border = '1px solid rgba(0,0,0,0.04)';
+          item.style.display = 'flex';
+          item.style.justifyContent = 'space-between';
+          item.style.alignItems = 'center';
+
+          item.innerHTML = `
+            <div>
+              <strong style="font-size:0.95rem;">${s.name}</strong><br>
+              <span style="font-size:0.8rem; color:var(--text-muted-dark);">${s.address}</span><br>
+              <small style="font-weight:600;">Filled: ${s.occupancy}/${s.capacity} | Food: ${s.foodAvailable?'Yes':'No'} | Med: ${s.medicalAvailable?'Yes':'No'}</small>
+            </div>
+            <div style="display:flex; gap:0.3rem;">
+              <button class="btn btn-secondary edit-shelter-btn" data-s='${JSON.stringify(s)}' style="padding:0.3rem 0.6rem; font-size:0.8rem; border-radius:4px;"><i class="fas fa-edit"></i> Edit</button>
+            </div>
+          `;
+          container.appendChild(item);
+        });
+
+        container.querySelectorAll('.edit-shelter-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const s = JSON.parse(btn.dataset.s);
+            document.getElementById('shelter-id').value = s.id;
+            document.getElementById('she-name').value = s.name;
+            document.getElementById('she-address').value = s.address;
+            document.getElementById('she-lat').value = s.latitude || '';
+            document.getElementById('she-lng').value = s.longitude || '';
+            document.getElementById('she-capacity').value = s.capacity;
+            document.getElementById('she-occupancy').value = s.occupancy;
+            document.getElementById('she-food').checked = s.foodAvailable;
+            document.getElementById('she-medical').checked = s.medicalAvailable;
+
+            document.getElementById('shelter-form-title').innerHTML = `<i class="fas fa-edit" style="color: var(--primary-red)"></i> Edit Safety Shelter Settings`;
+            clearShelterBtn.style.display = 'inline-flex';
+          });
+        });
+
+      } catch(err) {
+        container.innerHTML = `<p style="color:var(--primary-red); text-align:center;">Could not load shelters registry.</p>`;
+      }
+    }
+
+    // 7. USER REGISTRY & DEACTIVATION TABLE
+    async function loadUsersList() {
+      const tbody = document.getElementById('users-table-body');
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/users', {
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        let users = [];
+        if (response.ok) {
+          users = await response.json();
+        } else {
+          throw new Error("API failed");
+        }
+        renderUsersTable(users, tbody);
+      } catch (err) {
+        console.warn("Backend API loadUsersList failed, trying direct client-side read:", err);
+        try {
+          const snap = await getDocs(collection(db, 'users'));
+          const users = [];
+          snap.forEach(d => users.push({ uid: d.id, ...d.data() }));
+          renderUsersTable(users, tbody);
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--primary-red);">Could not load user accounts.</td></tr>`;
+        }
+      }
+    }
+
+    function renderUsersTable(users, tbody) {
+      tbody.innerHTML = '';
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        const isUserDisabled = u.disabled === true;
+        
+        const statusBadge = isUserDisabled 
+          ? `<span class="badge badge-rejected">Suspended</span>` 
+          : `<span class="badge badge-verified">Active</span>`;
+
+        const actionBtn = isUserDisabled
+          ? `<button class="btn btn-primary toggle-user-btn" data-uid="${u.uid}" data-disabled="false" style="padding:0.3rem 0.6rem; font-size:0.8rem; background-color:var(--success); box-shadow:none;"><i class="fas fa-check"></i> Activate</button>`
+          : `<button class="btn btn-danger toggle-user-btn" data-uid="${u.uid}" data-disabled="true" style="padding:0.3rem 0.6rem; font-size:0.8rem; box-shadow:none;"><i class="fas fa-user-slash"></i> Deactivate</button>`;
+
+        const smsBtn = u.phone 
+          ? `<button class="btn btn-secondary send-sms-btn" data-phone="${u.phone}" style="padding:0.25rem 0.5rem; font-size:0.75rem; border-radius:4px; margin-left:0.5rem; box-shadow:none;"><i class="fas fa-comment-sms"></i> SMS</button>`
+          : ``;
+
+        tr.innerHTML = `
+          <td><small>${u.uid.substring(0,8)}...</small></td>
+          <td><strong>${u.fullName || 'Unregistered'}</strong></td>
+          <td>${u.email}</td>
+          <td>${u.phone || 'None'}${smsBtn}</td>
+          <td><span class="badge badge-low">${u.role || 'user'}</span></td>
+          <td>${statusBadge}</td>
+          <td>${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.toggle-user-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.uid;
+          const disabledState = btn.dataset.disabled === 'true';
+          await toggleUserStatus(uid, disabledState);
+        });
+      });
+
+      // Bind SMS buttons in User Registry
+      tbody.querySelectorAll('.send-sms-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const phone = btn.dataset.phone;
+          const smsText = document.querySelector('.sms-global-body').value.trim() || "Emergency Alert: Please check the Disaster Response dashboard for instructions.";
+          window.open(`sms:${phone}?body=${encodeURIComponent(smsText)}`, '_blank');
+        });
+      });
+    }
+
+    async function toggleUserStatus(uid, disabled) {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/users', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ uid, disabled })
+        });
+        if (!response.ok) throw new Error();
+        showNotification("User account status adjusted successfully.", "success");
+      } catch (err) {
+        console.warn("Backend API toggleUserStatus failed, trying direct client-side update:", err);
+        try {
+          await updateDoc(doc(db, "users", uid), {
+            disabled: disabled,
+            updatedAt: new Date()
+          });
+          showNotification("User account status adjusted directly.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Adjusting account status failed: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+      await loadUsersList();
+    }
+
+    function getSeverityColor(sev) {
+      switch((sev || '').toLowerCase()) {
+        case 'low': return 'var(--severity-low)';
+        case 'medium': return 'var(--severity-medium)';
+        case 'high': return 'var(--severity-high)';
+        case 'critical': return 'var(--severity-critical)';
+        default: return 'var(--primary-red)';
+      }
+    }
+  </script>
+</body>
+</html>
