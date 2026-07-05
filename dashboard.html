@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard | Disaster Alert System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- In-app Alert Notification Banner container -->
+  <div id="in-app-alert-container"></div>
+
+  <header>
+    <a href="index.html" class="logo">
+      <i class="fas fa-shield-halved"></i>
+      <span>DISASTER RESPONSE</span>
+    </a>
+    <div class="nav-actions">
+      <nav id="navbar-links">
+        <a href="index.html">Home</a>
+        <a href="emergency.html">Emergency Hub</a>
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="report.html">Report Incident</a>
+      </nav>
+      <button class="theme-switch" id="theme-toggle">
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid-2">
+      
+      <!-- Column 1: Profile Management -->
+      <section class="card" style="align-self: flex-start;">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem; display:flex; align-items:center; gap:0.5rem; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem;">
+          <i class="fas fa-address-card" style="color: var(--primary-red)"></i> Profile Management
+        </h2>
+        
+        <form id="profile-form">
+          <div class="form-group">
+            <label for="prof-name">Full Name</label>
+            <input type="text" id="prof-name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="prof-email">Email Address (Read-only)</label>
+            <input type="email" id="prof-email" class="form-control" disabled style="opacity:0.7;">
+          </div>
+          <div class="form-group">
+            <label for="prof-phone">Phone Number</label>
+            <input type="tel" id="prof-phone" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="prof-location">Location / Coordinates</label>
+            <input type="text" id="prof-location" class="form-control" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">
+            <i class="fas fa-save"></i> Save Profile Details
+          </button>
+        </form>
+
+        <div style="border-top: 1px solid rgba(0,0,0,0.06); margin-top: 2rem; padding-top: 1.5rem;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-lock" style="color: var(--primary-red)"></i> Security Credentials</h3>
+          <button type="button" id="open-pass-btn" class="btn btn-secondary" style="width: 100%;">
+            <i class="fas fa-key"></i> Change Account Password
+          </button>
+        </div>
+
+        <div style="border-top: 1px solid rgba(0,0,0,0.06); margin-top: 1.5rem; padding-top: 1.5rem;">
+          <h3 style="font-size: 1.1rem; margin-bottom: 1rem;"><i class="fas fa-bell" style="color: var(--primary-red)"></i> Notification Services</h3>
+          <button type="button" id="enable-push-btn" class="btn btn-secondary" style="width: 100%; border-color: var(--success); color: var(--success); background: rgba(46, 125, 50, 0.05);">
+            <i class="fas fa-satellite-dish"></i> Register Push Alerts (FCM)
+          </button>
+        </div>
+      </section>
+
+      <!-- Column 2: Alert History & Broadcasts -->
+      <section class="card" style="align-self: flex-start;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 0.5rem; margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.5rem; display:flex; align-items:center; gap:0.5rem; margin:0;">
+            <i class="fas fa-clock-rotate-left" style="color: var(--primary-red)"></i> Local Alert History
+          </h2>
+          <span class="badge badge-low" id="user-loc-badge">Location: Loading...</span>
+        </div>
+        
+        <div id="alert-history-list" style="display:flex; flex-direction:column; gap:1.2rem;">
+          <div style="text-align: center; color: var(--text-muted-dark); padding: 2rem 0;">
+            <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 0.5rem; color:var(--primary-red)"></i>
+            <p>Filtering disaster alerts by location...</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" id="password-modal">
+    <div class="modal-content">
+      <button class="modal-close" id="close-pass-modal">&times;</button>
+      <h3 style="margin-bottom: 1rem;"><i class="fas fa-shield-halved" style="color: var(--primary-red)"></i> Change Password</h3>
+      <form id="change-pass-form">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label for="new-password">New Password (Min 6 characters)</label>
+          <input type="password" id="new-password" class="form-control" placeholder="••••••••" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fas fa-key"></i> Update Password
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Disaster Alert and Response System. Developed for premium emergency deployment.</p>
+  </footer>
+
+  <script type="module">
+    import { firebaseInitPromise, auth, db, setupPushNotifications, showNotification } from '/js/app.js';
+    import { doc, getDoc, updateDoc, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { updatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const profName = document.getElementById('prof-name');
+    const profEmail = document.getElementById('prof-email');
+    const profPhone = document.getElementById('prof-phone');
+    const profLocation = document.getElementById('prof-location');
+    const locBadge = document.getElementById('user-loc-badge');
+    const alertList = document.getElementById('alert-history-list');
+
+    // Wait for SDK initialization and fetch profile data
+    firebaseInitPromise.then(async () => {
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          await populateUserProfile(user);
+          await loadAlertHistory(user);
+        }
+      });
+    });
+
+    // Load user data into form
+    async function populateUserProfile(user) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userRef);
+        
+        if (docSnap.exists()) {
+          const profile = docSnap.data();
+          profName.value = profile.fullName || '';
+          profEmail.value = profile.email || user.email;
+          profPhone.value = profile.phone || '';
+          profLocation.value = profile.location || '';
+          
+          const displayLoc = profile.location ? profile.location.split('(')[0].trim() : 'Unknown';
+          locBadge.innerText = `Filters: ${displayLoc}`;
+        }
+      } catch (err) {
+        console.error("Error displaying profile:", err);
+        showNotification("Failed to load user profile metadata.", "error");
+      }
+    }
+
+    // Load alert history filtered by location
+    async function loadAlertHistory(user) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        const userLoc = userSnap.exists() ? (userSnap.data().location || '').toLowerCase() : '';
+
+        const alertsRef = collection(db, 'alerts');
+        const q = query(alertsRef, orderBy('timestamp', 'desc'));
+        const snapshot = await getDocs(q);
+
+        alertList.innerHTML = '';
+        let alertsRendered = 0;
+
+        snapshot.forEach(docSnap => {
+          const alert = { id: docSnap.id, ...docSnap.data() };
+          const alertLoc = (alert.location || '').toLowerCase();
+          
+          // Filter match criteria: alert location is 'all' or matches substring of user's registered location
+          if (alertLoc === 'all' || userLoc.includes(alertLoc) || alertLoc.includes(userLoc)) {
+            alertsRendered++;
+            
+            const item = document.createElement('div');
+            item.style.padding = '1rem';
+            item.style.borderRadius = 'var(--border-radius-sm)';
+            item.style.background = 'rgba(0,0,0,0.02)';
+            item.style.borderLeft = `4px solid ${getSeverityColor(alert.severity)}`;
+            item.style.position = 'relative';
+
+            // Adapt background for dark mode dynamically
+            if (document.body.classList.contains('dark-mode')) {
+              item.style.background = 'rgba(255,255,255,0.02)';
+            }
+
+            const alertDate = alert.timestamp ? alert.timestamp.toDate().toLocaleDateString() : 'Recent';
+            
+            item.innerHTML = `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <h4 style="margin:0;"><i class="fas fa-bullhorn" style="color:${getSeverityColor(alert.severity)}"></i> ${alert.type}</h4>
+                <span class="badge badge-${alert.severity.toLowerCase()}">${alert.severity}</span>
+              </div>
+              <p style="font-size:0.9rem; color:var(--text-muted-dark); margin-bottom:0.5rem;">${alert.message}</p>
+              <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:600; color:var(--text-muted-dark);">
+                <span><i class="fas fa-location-dot"></i> Area: ${alert.location}</span>
+                <span><i class="fas fa-calendar-alt"></i> ${alertDate}</span>
+              </div>
+              <span class="badge badge-${alert.status.toLowerCase()}" style="position:absolute; top:1rem; right:4.5rem; font-size:0.65rem; padding:0.2rem 0.4rem;">${alert.status}</span>
+            `;
+            alertList.appendChild(item);
+          }
+        });
+
+        if (alertsRendered === 0) {
+          alertList.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted-dark); padding: 2rem 0;">
+              <i class="fas fa-shield" style="font-size: 2.5rem; color: var(--success); margin-bottom: 0.5rem;"></i>
+              <p>No disaster alerts match your current location.</p>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        console.error("Alert history pull failed:", err);
+        alertList.innerHTML = `
+          <div style="text-align: center; color: var(--primary-red); padding: 2rem 0;">
+            <i class="fas fa-triangle-exclamation" style="font-size: 2.5rem; margin-bottom: 0.5rem;"></i>
+            <p>Could not load alert history. Verify Firestore is running.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Save profile updates
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const name = profName.value.trim();
+      const phone = profPhone.value.trim();
+      const location = profLocation.value.trim();
+
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          fullName: name,
+          phone: phone,
+          location: location,
+          updatedAt: new Date()
+        });
+
+        showNotification("Profile details updated successfully.", "success");
+        const displayLoc = location.split('(')[0].trim();
+        locBadge.innerText = `Filters: ${displayLoc}`;
+        
+        // Reload alerts since location might have changed
+        await loadAlertHistory(user);
+      } catch (err) {
+        console.error("Profile save failed:", err);
+        showNotification("Failed to update profile details: " + err.message, "error");
+      }
+    });
+
+    // FCM Notification Register trigger
+    document.getElementById('enable-push-btn').addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+      
+      showNotification("Requesting push permissions from browser...", "info");
+      try {
+        await setupPushNotifications(user);
+        showNotification("Push registration completed.", "success");
+      } catch (err) {
+        showNotification("FCM permission denied or setup failed.", "error");
+      }
+    });
+
+    // Change password modal actions
+    const passModal = document.getElementById('password-modal');
+    document.getElementById('open-pass-btn').addEventListener('click', () => {
+      passModal.style.display = 'flex';
+    });
+
+    document.getElementById('close-pass-modal').addEventListener('click', () => {
+      passModal.style.display = 'none';
+    });
+
+    document.getElementById('change-pass-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const newPass = document.getElementById('new-password').value;
+
+      try {
+        await updatePassword(user, newPass);
+        showNotification("Password updated successfully.", "success");
+        passModal.style.display = 'none';
+        document.getElementById('new-password').value = '';
+      } catch (err) {
+        console.error("Password update failed:", err);
+        let errorMsg = "Password change failed. If logged in for a long time, please sign out and sign back in to re-authenticate.";
+        if (err.code === 'auth/weak-password') {
+          errorMsg = "Password is too weak. Choose at least 6 characters.";
+        }
+        showNotification(errorMsg, "error");
+      }
+    });
+
+    function getSeverityColor(sev) {
+      switch((sev || '').toLowerCase()) {
+        case 'low': return 'var(--severity-low)';
+        case 'medium': return 'var(--severity-medium)';
+        case 'high': return 'var(--severity-high)';
+        case 'critical': return 'var(--severity-critical)';
+        default: return 'var(--primary-red)';
+      }
+    }
+  </script>
+</body>
+</html>
