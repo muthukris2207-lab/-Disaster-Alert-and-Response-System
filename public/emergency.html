@@ -228,7 +228,7 @@
 
   <script type="module">
     import { firebaseInitPromise, auth, db, showNotification } from '/js/app.js';
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { doc, getDoc, collection, query, orderBy, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     let userLat = null;
     let userLng = null;
@@ -305,6 +305,18 @@
       );
     }
 
+    // Helper function to calculate distance in KM between two coordinates
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Earth's radius in KM
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
     async function fetchShelters(lat, lng) {
       const loader = document.getElementById('shelters-loader');
       const grid = document.getElementById('shelters-grid');
@@ -314,77 +326,93 @@
         url += `?lat=${lat}&lng=${lng}`;
       }
 
+      let shelters = [];
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error("Shelter retrieval failed");
-        
-        const shelters = await response.json();
-        
-        grid.innerHTML = '';
-        
-        if (shelters.length === 0) {
+        shelters = await response.json();
+      } catch (err) {
+        console.warn("Backend API fetch shelters failed, trying direct client-side read:", err);
+        try {
+          const snap = await getDocs(collection(db, 'shelters'));
+          snap.forEach(docSnap => {
+            const data = docSnap.data();
+            let distance = null;
+            if (lat && lng && data.latitude && data.longitude) {
+              distance = calculateDistance(lat, lng, data.latitude, data.longitude);
+            }
+            shelters.push({ id: docSnap.id, ...data, distance });
+          });
+          // Sort by distance if user coordinates exist
+          if (lat && lng) {
+            shelters.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+          }
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          loader.style.display = 'none';
           grid.innerHTML = `
-            <div style="grid-column: span 3; text-align: center; color: var(--text-muted-dark); padding: 3rem;">
-              <i class="fas fa-house-chimney-crack" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-              <p>No safety shelters registered in the database yet.</p>
+            <div style="grid-column: span 3; text-align: center; color: var(--primary-red); padding: 2rem;">
+              <p>Could not load safety shelters. Verify Firestore rules and database.</p>
             </div>
           `;
-        } else {
-          shelters.forEach(shelter => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            
-            const distanceText = shelter.distance !== undefined && shelter.distance !== null 
-              ? `<small style="font-weight:700; color:var(--primary-red);"><i class="fas fa-location-arrow"></i> ${shelter.distance.toFixed(1)} KM away</small>` 
-              : '';
-            
-            const occPercentage = Math.round((shelter.occupancy / shelter.capacity) * 100) || 0;
-            const capColor = occPercentage > 90 ? 'var(--severity-critical)' : occPercentage > 60 ? 'var(--severity-medium)' : 'var(--success)';
-
-            card.innerHTML = `
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 0.5rem;">
-                <h3 style="font-size:1.2rem; margin:0;"><i class="fas fa-house-circle-check" style="color:var(--success)"></i> ${shelter.name}</h3>
-                ${distanceText}
-              </div>
-              <p style="color:var(--text-muted-dark); font-size:0.85rem; margin-bottom: 1rem;"><i class="fas fa-map-pin"></i> ${shelter.address}</p>
-              
-              <!-- Capacity indicator bar -->
-              <div style="margin-bottom: 1rem;">
-                <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:0.2rem;">
-                  <span>Capacity Details:</span>
-                  <span style="color:${capColor}">${shelter.occupancy} / ${shelter.capacity} filled (${occPercentage}%)</span>
-                </div>
-                <div style="width:100%; height:8px; border-radius:10px; background:rgba(0,0,0,0.06); overflow:hidden;">
-                  <div style="width:${Math.min(occPercentage, 100)}%; height:100%; background:${capColor};"></div>
-                </div>
-              </div>
-
-              <div class="shelter-details">
-                <span class="resource-indicator ${shelter.foodAvailable ? 'resource-available' : 'resource-unavailable'}">
-                  <i class="fas ${shelter.foodAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Food
-                </span>
-                <span class="resource-indicator ${shelter.medicalAvailable ? 'resource-available' : 'resource-unavailable'}">
-                  <i class="fas ${shelter.medicalAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Medical Aid
-                </span>
-              </div>
-            `;
-            grid.appendChild(card);
-          });
+          grid.style.display = 'block';
+          return;
         }
+      }
 
-        loader.style.display = 'none';
-        grid.style.display = 'grid';
-
-      } catch (err) {
-        console.error("Fetch shelters failed:", err);
-        loader.style.display = 'none';
+      grid.innerHTML = '';
+      if (shelters.length === 0) {
         grid.innerHTML = `
-          <div style="grid-column: span 3; text-align: center; color: var(--primary-red); padding: 2rem;">
-            <p>Could not fetch shelters. Verify backend connection is up.</p>
+          <div style="grid-column: span 3; text-align: center; color: var(--text-muted-dark); padding: 3rem;">
+            <i class="fas fa-house-chimney-crack" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+            <p>No safety shelters registered in the database yet.</p>
           </div>
         `;
-        grid.style.display = 'block';
+      } else {
+        shelters.forEach(shelter => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          
+          const distanceText = shelter.distance !== undefined && shelter.distance !== null 
+            ? `<small style="font-weight:700; color:var(--primary-red);"><i class="fas fa-location-arrow"></i> ${shelter.distance.toFixed(1)} KM away</small>` 
+            : '';
+          
+          const occPercentage = Math.round((shelter.occupancy / shelter.capacity) * 100) || 0;
+          const capColor = occPercentage > 90 ? 'var(--severity-critical)' : occPercentage > 60 ? 'var(--severity-medium)' : 'var(--success)';
+
+          card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 0.5rem;">
+              <h3 style="font-size:1.2rem; margin:0;"><i class="fas fa-house-circle-check" style="color:var(--success)"></i> ${shelter.name}</h3>
+              ${distanceText}
+            </div>
+            <p style="color:var(--text-muted-dark); font-size:0.85rem; margin-bottom: 1rem;"><i class="fas fa-map-pin"></i> ${shelter.address}</p>
+            
+            <!-- Capacity indicator bar -->
+            <div style="margin-bottom: 1rem;">
+              <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:700; margin-bottom:0.2rem;">
+                <span>Capacity Details:</span>
+                <span style="color:${capColor}">${shelter.occupancy} / ${shelter.capacity} filled (${occPercentage}%)</span>
+              </div>
+              <div style="width:100%; height:8px; border-radius:10px; background:rgba(0,0,0,0.06); overflow:hidden;">
+                <div style="width:${Math.min(occPercentage, 100)}%; height:100%; background:${capColor};"></div>
+              </div>
+            </div>
+
+            <div class="shelter-details">
+              <span class="resource-indicator ${shelter.foodAvailable ? 'resource-available' : 'resource-unavailable'}">
+                <i class="fas ${shelter.foodAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Food
+              </span>
+              <span class="resource-indicator ${shelter.medicalAvailable ? 'resource-available' : 'resource-unavailable'}">
+                <i class="fas ${shelter.medicalAvailable ? 'fa-circle-check' : 'fa-circle-xmark'}"></i> Medical Aid
+              </span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
       }
+
+      loader.style.display = 'none';
+      grid.style.display = 'grid';
     }
 
     // Submit SOS Help Form
@@ -421,17 +449,30 @@
           })
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || "SOS submit failed");
-        }
-
+        if (!response.ok) throw new Error("Server API failed.");
         showNotification("SOS Help Signal Broadcasted. Relaying to teams.", "success");
-        document.getElementById('sos-help').value = '';
       } catch (err) {
-        console.error(err);
-        showNotification("Failed to send SOS: " + err.message, "error");
+        console.warn("Backend API SOS failed, trying direct client-side write:", err);
+        try {
+          await addDoc(collection(db, 'emergency_requests'), {
+            name,
+            phone,
+            typeOfHelp,
+            location,
+            latitude: userLat || null,
+            longitude: userLng || null,
+            status: 'Pending',
+            createdAt: new Date(),
+            userId: user.uid
+          });
+          showNotification("SOS Help Signal saved directly to database. Relaying to teams.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Failed to send SOS: " + fallbackErr.message, "error");
+          return;
+        }
       }
+      document.getElementById('sos-help').value = '';
     });
 
     // Submit Volunteer Registration
@@ -467,18 +508,30 @@
           })
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || "Volunteer register failed");
-        }
-
+        if (!response.ok) throw new Error("Server API failed.");
         showNotification("Volunteer registration submitted. Thank you for your support!", "success");
-        document.getElementById('vol-skills').value = '';
-        document.getElementById('vol-area').value = '';
       } catch(err) {
-        console.error(err);
-        showNotification("Volunteer registration failed: " + err.message, "error");
+        console.warn("Backend API volunteer register failed, trying direct client-side write:", err);
+        try {
+          await addDoc(collection(db, 'volunteers'), {
+            name,
+            email,
+            phone,
+            skills,
+            availableArea,
+            assignedTask: '',
+            createdAt: new Date(),
+            userId: user.uid
+          });
+          showNotification("Volunteer registration submitted directly. Thank you!", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Volunteer registration failed: " + fallbackErr.message, "error");
+          return;
+        }
       }
+      document.getElementById('vol-skills').value = '';
+      document.getElementById('vol-area').value = '';
     });
   </script>
 </body>
