@@ -4,23 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Emergency Login | Disaster Alert System</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
   <!-- Header Navigation -->
   <header>
-    <a href="/" class="logo">
+    <a href="index.html" class="logo">
       <i class="fas fa-shield-halved"></i>
       <span>DISASTER RESPONSE</span>
     </a>
     <div class="nav-actions">
       <nav id="navbar-links">
-        <a href="/">Home</a>
-        <a href="/emergency">Emergency Hub</a>
-        <a href="/login" class="active">Login</a>
-        <a href="/register">Register</a>
+        <a href="index.html">Home</a>
+        <a href="emergency.html">Emergency Hub</a>
+        <a href="login.html" class="active">Login</a>
+        <a href="register.html">Register</a>
       </nav>
       <button class="theme-switch" id="theme-toggle" aria-label="Toggle Theme">
         <i class="fas fa-moon"></i>
@@ -58,7 +58,7 @@
 
       <div style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem;">
         <span style="color: var(--text-muted-dark);">Don't have an account? </span>
-        <a href="/register" style="color: var(--primary-red); font-weight: 700;">Register Here</a>
+        <a href="register.html" style="color: var(--primary-red); font-weight: 700;">Register Here</a>
       </div>
     </div>
   </main>
@@ -119,7 +119,7 @@
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         showNotification("Authenticated successfully. Redirecting...", "success");
         setTimeout(() => {
-          window.location.href = '/dashboard';
+          window.location.href = 'dashboard.html';
         }, 1000);
       } catch (err) {
         console.error("Sign in failed:", err);
