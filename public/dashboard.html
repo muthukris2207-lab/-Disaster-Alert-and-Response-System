@@ -120,7 +120,7 @@
   <script type="module">
     import { firebaseInitPromise, auth, db, setupPushNotifications, showNotification } from '/js/app.js';
     import { doc, getDoc, updateDoc, collection, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { updatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const profName = document.getElementById('prof-name');
     const profEmail = document.getElementById('prof-email');
@@ -131,12 +131,12 @@
 
     // Wait for SDK initialization and fetch profile data
     firebaseInitPromise.then(async () => {
-      // Run FCM tokens and permissions check right on dashboard entry
-      const user = auth.currentUser;
-      if (user) {
-        await populateUserProfile(user);
-        await loadAlertHistory(user);
-      }
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          await populateUserProfile(user);
+          await loadAlertHistory(user);
+        }
+      });
     });
 
     // Load user data into form
