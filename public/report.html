@@ -282,22 +282,38 @@
           })
         });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || "Report dispatch failed");
-        }
-
+        if (!response.ok) throw new Error("Server API failed.");
         showNotification("Incident report submitted. Admin review pending.", "success");
-        
-        // Reset Form
-        document.getElementById('rep-type').value = '';
-        document.getElementById('rep-desc').value = '';
-        fileInput.value = '';
-        previewImg.style.display = 'none';
-        uploadLabelText.innerText = 'Select Photo File';
+      } catch (err) {
+        console.warn("Backend API report submit failed, trying direct client-side write:", err);
+        try {
+          await addDoc(collection(db, 'reports'), {
+            disasterType,
+            description,
+            photoUrl,
+            latitude: lat,
+            longitude: lng,
+            status: 'Pending',
+            createdAt: new Date(),
+            userId: user.uid
+          });
+          showNotification("Incident report submitted directly. Admin review pending.", "success");
+        } catch (fallbackErr) {
+          console.error(fallbackErr);
+          showNotification("Filing report failed: " + fallbackErr.message, "error");
+          return;
+        }
+      }
+      
+      // Reset Form
+      document.getElementById('rep-type').value = '';
+      document.getElementById('rep-desc').value = '';
+      fileInput.value = '';
+      previewImg.style.display = 'none';
+      uploadLabelText.innerText = 'Select Photo File';
 
-        // Reload lists
-        await loadUserReports(user);
+      // Reload lists
+      await loadUserReports(user);
       } catch (err) {
         console.error("Report submit failed:", err);
         showNotification("Filing report failed: " + err.message, "error");
